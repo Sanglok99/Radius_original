@@ -1,0 +1,39 @@
+1. l1 블록체인 (스마트컨트랙트) - (이더리움 - l1 오퍼레이터)
+- tx-orderer들에 대한 정보를 등록하고 리워드를 주는 역할
+- /home/syslab/radius/dockerized-sbb
+- branch - feat/execs - commit: 35f54e1ee9c24c04a347c3c5a28eac8b780fd467
+- install - foundryup
+    - $ curl -L https://foundry.paradigm.xyz | bash
+    - $ foundryup
+
+- 1. 라디우스와 관련된 컨트랙트(solidity)를 l1(local blockchain)에 배포 -> state를 export함
+- 2. 블록체인 실행 (exported된 state를 기반으로 블록체인 구성)
+
+3. DGK (다른 오퍼레이터)
+ - 주기적으로 암호화키 생성 -> 2초동안 CPU연산을 해서 복호화 키를 계산함 (timelock-puzzle)
+    - 생성된 암호화키에 관련된 복호화키를 계산함
+ - API - interfacecc
+    - get_encryption_key
+    - get_decryption_key
+
+ - $ docker compose up distributed_key_generator
+
+2. seeder (라디우스)
+- tx-orderer의 정보(i.e., IP)를 관리함 
+- API
+    - register_tx_orderer
+    - get_xxx
+
+- $ docker compose up seeder
+
+5. tx_orderer (오퍼레이터)
+- 사용자의 트랜잭션을 받아 블록에 필요한 트랜잭션 리스트를 생성 (오더링)
+- 트랜잭션 리스트를 롤업에 전달
+
+4. secure-rpc (RPC provider)
+- 사용자의 트랜잭션을 전달받고, 해당 트랜잭션을 DKG로부터 받은 암호화키를 기반으로 암호화함.
+- 이후 해당 암호화된 트랜잭션을 tx-orderer에게 전달하여, oc를 tx-orderer에거 받고, 
+  이를 사용자에게 전달함
+
+6. 롤업 (롤업회사)
+- 트랜잭션 리스트를 받아 롤업의 상태를 변경하는 역할
