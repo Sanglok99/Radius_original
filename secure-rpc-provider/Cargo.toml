@@ -1,0 +1,26 @@
+[package]
+name = "secure-rpc"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "secure-rpc"
+path = "src/bin/secure_rpc.rs"
+
+[dependencies]
+clap = { version = "4.4.7", features = ["derive"] }
+rand = "0.8.5"
+reqwest = { version = "0.12.4", features = ["json"] }
+serde = { version = "1.0.197", features = ["derive"] }
+serde_json = "1.0.128"
+tokio = { version = "1.37.0", default-features = false }
+toml = "0.8.13"
+tracing = "0.1.37"
+tracing-subscriber = "0.3.17"
+
+# Encryption libraries
+# pvde = { git = "https://github.com/radiusxyz/pvde", rev="0abc447e775a52ecc5695cf070086fcad9cdaebb"}
+skde = { git = "https://github.com/radiusxyz/skde", rev="d46d66fa1e59aa5d555a1124cf3b89cef4753fd1"}
+
+sequencer = { git = "https://github.com/radiusxyz/sequencer", rev="f7dc2047bac57560224d918c94fb9293250531eb"}
+radius-sdk = { git = "https://github.com/radiusxyz/radius-sdk-rs", tag = "v0.1", features = ["full"] }

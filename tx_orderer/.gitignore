@@ -1,0 +1,10 @@
+/target
+
+/data
+/scripts/tx_orderer
+
+/scripts/execute/env.sh
+/scripts/rpc-call/env.sh
+
+/scripts/verify
+/utils

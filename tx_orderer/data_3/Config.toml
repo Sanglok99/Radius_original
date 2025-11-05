@@ -1,0 +1,24 @@
+# Set tx_orderer rpc url
+external_rpc_url = "http://165.194.35.15:3002"
+
+# Set internal rpc url
+internal_rpc_url = "http://127.0.0.1:4002"
+
+# Set cluster rpc url
+cluster_rpc_url = "http://165.194.35.15:5002"
+
+# Set seeder rpc url
+seeder_rpc_url = "http://165.194.35.15:10002"
+
+# Set reward manager rpc url
+reward_manager_rpc_url = "http://165.194.35.15:6100"
+
+# Set distributed key generation rpc url
+distributed_key_generation_rpc_url = "http://165.194.35.15:11002"
+
+# Set using zkp
+is_using_zkp = false
+
+# Set builder rpc url
+# builder_rpc_url = None
+

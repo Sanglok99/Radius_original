@@ -1,0 +1,11 @@
+.DS_Store
+
+.blockchain_env
+.dev_env
+.network_env
+.operator_env
+.staker_env
+.vault_env
+
+deployed_info.sh
+symbiotic-middleware-contract

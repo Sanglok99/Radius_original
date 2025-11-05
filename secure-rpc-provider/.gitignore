@@ -1,0 +1,7 @@
+/target
+
+/data
+/scripts/secure-rpc
+
+/scripts/execute/env.sh
+/scripts/rpc-call/env.sh

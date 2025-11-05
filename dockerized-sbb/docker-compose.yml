@@ -1,0 +1,80 @@
+services:
+  seeder:
+    container_name: seeder
+    build:
+      context: .
+      dockerfile: ./docker_files/seeder.Dockerfile
+    env_file:
+      - .dev_env
+    ports:
+      - "10001:10001"
+      - "10002:10002"
+    working_dir: /app/seeder
+    volumes:
+      - ./scripts/seeder-entrypoint.sh:/app/seeder/scripts/seeder-entrypoint.sh
+      - seeder_data:/app/seeder/data
+    entrypoint: ["/bin/bash", "/app/seeder/scripts/seeder-entrypoint.sh"]
+
+  distributed_key_generator:
+    container_name: distributed_key_generator
+    build:
+      context: .
+      dockerfile: ./docker_files/distributed_key_generator.Dockerfile
+    env_file:
+      - .dev_env
+    ports:
+      - "11001:11001"
+      - "11002:11002"
+      - "11003:11003"
+    working_dir: /app/distributed_key_generator
+    volumes:
+      - ./scripts/distributed_key_generator-entrypoint.sh:/app/distributed_key_generator/scripts/distributed_key_generator-entrypoint.sh
+      - distributed_key_generator_data:/app/distributed_key_generator/data
+    entrypoint:
+      [
+        "/bin/bash",
+        "/app/distributed_key_generator/scripts/distributed_key_generator-entrypoint.sh",
+      ]
+  tx_orderer:
+    container_name: tx_orderer
+    build:
+      context: .
+      dockerfile: ./docker_files/tx_orderer.Dockerfile
+    env_file:
+      - .operator_env
+    ports:
+      - "11101:11101"
+      - "11102:11102"
+      - "11103:11103"
+    working_dir: /app/tx_orderer
+    volumes:
+      - ./scripts/tx_orderer-entrypoint.sh:/app/tx_orderer/scripts/tx_orderer-entrypoint.sh
+      - tx_orderer_data:/app/tx_orderer/data
+    entrypoint:
+      ["/bin/bash", "/app/tx_orderer/scripts/tx_orderer-entrypoint.sh"]
+
+  secure-rpc-provider:
+    container_name: secure-rpc-provider
+    build:
+      context: .
+      dockerfile: ./docker_files/secure-rpc-provider.Dockerfile
+    env_file:
+      - .dev_env
+    ports:
+      - "11111:11111"
+      - "9111:9111"
+    working_dir: /app/secure-rpc-provider
+    volumes:
+      - ./scripts/secure-rpc-provider-entrypoint.sh:/app/secure-rpc-provider/scripts/secure-rpc-provider-entrypoint.sh
+      - secure-rpc-provider_data:/app/secure-rpc-provider/data
+    entrypoint:
+      [
+        "/bin/bash",
+        "/app/secure-rpc-provider/scripts/secure-rpc-provider-entrypoint.sh",
+      ]
+
+volumes:
+  seeder_data:
+  distributed_key_generator_data:
+  secure-rpc-provider_data:
+  tx_orderer_data:
