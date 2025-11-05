@@ -1,1 +1,3 @@
 target/
+tx_orderer/**/logs/**
+*.log
