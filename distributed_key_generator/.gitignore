@@ -1,0 +1,7 @@
+/target
+
+/data
+/scripts/key-generator
+
+/scripts/execute/env.sh
+/scripts/rpc-call/env.sh
