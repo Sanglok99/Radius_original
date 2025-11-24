@@ -23,6 +23,8 @@ pub struct GetRawTransactionList {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+/*
+// old code
 pub struct LeaderChangeMessage {
     pub rollup_id: RollupId,
     pub executor_address: Address,
@@ -31,6 +33,21 @@ pub struct LeaderChangeMessage {
     pub current_leader_tx_orderer_address: Address,
     pub next_leader_tx_orderer_address: Address,
 }
+*/
+
+// === new code start ===
+pub struct LeaderChangeMessage {
+    pub rollup_id: RollupId,
+    pub executor_address: Address,
+    pub platform_block_height: u64,
+
+    pub current_leader_tx_orderer_address: Address,
+    pub next_leader_tx_orderer_address: Address,
+
+    #[serde(default)]
+    pub epoch: Option<u64>, // None is required by the rollup
+}
+// === new code end ===
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SignMessage {
@@ -56,6 +73,18 @@ impl RpcParameter<AppState> for GetRawTransactionList {
 
     async fn handler(self, context: AppState) -> Result<Self::Response, RpcError> {
         println!("=== GetRawTransactionList 시작 ==="); // test code
+
+        // === new code start ===
+        let epoch = match self.leader_change_message.epoch {
+            Some(epoch) => epoch,
+            None => {
+                tracing::error!("Epoch not found in leader change message");
+                return Ok(GetRawTransactionListResponse {
+                    raw_transaction_list: Vec::new(),
+                });
+            }
+        };
+        // === new code end ===
 
         let start_get_raw_transaction_list_time = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -252,13 +281,13 @@ impl RpcParameter<AppState> for GetRawTransactionList {
                 {
                     Ok(response) => {
 
-                      tracing::info!(
+                        tracing::info!(
                           "Get order commitment info - current leader external rpc response: {:?}",
                           response
-                      );
+                        );
 
-                      mut_rollup_metadata.batch_number = response.batch_number;
-                      mut_rollup_metadata.transaction_order = response.transaction_order;
+                        mut_rollup_metadata.batch_number = response.batch_number;
+                        mut_rollup_metadata.transaction_order = response.transaction_order;
                     }
                     Err(error) => {
                         tracing::error!(
@@ -508,6 +537,28 @@ fn extract_raw_transactions(batch: Batch, start_transaction_order: u64) -> Vec<S
             if (i as u64) >= start_transaction_order {
                 Some(match transaction {
                     RawTransaction::Eth(EthRawTransaction { raw_transaction, .. }) => raw_transaction, // new code
+                    // RawTransaction::Eth(EthRawTransaction(data)) => data,
+                    RawTransaction::EthBundle(EthRawBundleTransaction(data)) => data,
+                })
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+fn my_extract_raw_transactions(batch: Batch, start_transaction_order: u64) -> Vec<String> {
+    batch
+        .raw_transaction_list
+        .into_iter()
+        .enumerate()
+        .filter_map(|(i, transaction)| {
+            if (i as u64) >= start_transaction_order {
+                Some(match transaction {
+                    RawTransaction::Eth(EthRawTransaction { raw_transaction, .. }) => {
+                        
+                        raw_transaction
+                    }, // new new code
                     // RawTransaction::Eth(EthRawTransaction(data)) => data,
                     RawTransaction::EthBundle(EthRawBundleTransaction(data)) => data,
                 })
