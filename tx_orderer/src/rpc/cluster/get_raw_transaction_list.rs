@@ -547,28 +547,6 @@ fn extract_raw_transactions(batch: Batch, start_transaction_order: u64) -> Vec<S
         .collect()
 }
 
-fn my_extract_raw_transactions(batch: Batch, start_transaction_order: u64) -> Vec<String> {
-    batch
-        .raw_transaction_list
-        .into_iter()
-        .enumerate()
-        .filter_map(|(i, transaction)| {
-            if (i as u64) >= start_transaction_order {
-                Some(match transaction {
-                    RawTransaction::Eth(EthRawTransaction { raw_transaction, .. }) => {
-                        
-                        raw_transaction
-                    }, // new new code
-                    // RawTransaction::Eth(EthRawTransaction(data)) => data,
-                    RawTransaction::EthBundle(EthRawBundleTransaction(data)) => data,
-                })
-            } else {
-                None
-            }
-        })
-        .collect()
-}
-
 fn get_last_valid_transaction_order(
     can_provide_transaction_orders: &BTreeSet<u64>,
     provided_transaction_order: i64,
