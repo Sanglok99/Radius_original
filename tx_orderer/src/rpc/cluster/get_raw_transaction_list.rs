@@ -23,8 +23,6 @@ pub struct GetRawTransactionList {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-/*
-// old code
 pub struct LeaderChangeMessage {
     pub rollup_id: RollupId,
     pub executor_address: Address,
@@ -33,21 +31,6 @@ pub struct LeaderChangeMessage {
     pub current_leader_tx_orderer_address: Address,
     pub next_leader_tx_orderer_address: Address,
 }
-*/
-
-// === new code start ===
-pub struct LeaderChangeMessage {
-    pub rollup_id: RollupId,
-    pub executor_address: Address,
-    pub platform_block_height: u64,
-
-    pub current_leader_tx_orderer_address: Address,
-    pub next_leader_tx_orderer_address: Address,
-
-    #[serde(default)]
-    pub epoch: Option<u64>, // None is required by the rollup
-}
-// === new code end ===
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SignMessage {
@@ -74,18 +57,6 @@ impl RpcParameter<AppState> for GetRawTransactionList {
     async fn handler(self, context: AppState) -> Result<Self::Response, RpcError> {
         println!("=== GetRawTransactionList 시작 ==="); // test code
 
-        // === new code start ===
-        let epoch = match self.leader_change_message.epoch {
-            Some(epoch) => epoch,
-            None => {
-                tracing::error!("Epoch not found in leader change message");
-                return Ok(GetRawTransactionListResponse {
-                    raw_transaction_list: Vec::new(),
-                });
-            }
-        };
-        // === new code end ===
-
         let start_get_raw_transaction_list_time = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("Time went backwards")
@@ -111,19 +82,43 @@ impl RpcParameter<AppState> for GetRawTransactionList {
             }
         };
 
+        // === new code start ===
+        let mut epoch = rollup_metadata.provided_epoch;
+
+        if let Ok(can_provide_epoch) = CanProvideEpochInfo::get(&rollup_id) {
+            let completed_epoch_list = &can_provide_epoch.completed_epoch;
+            epoch = match get_last_valid_completed_epoch(completed_epoch_list, rollup_metadata.provided_epoch) {
+                Ok(last_valid_epoch) => last_valid_epoch,
+                Err(err) => {
+                    tracing::error!("Failed to get epoch - rollup_id: {:?} / error: {:?}", rollup_id, err);
+                    return Ok(GetRawTransactionListResponse {
+                        raw_transaction_list: Vec::new(),
+                    });
+                }
+            };
+        } else {
+            tracing::error!("Failed to get can_provide_epoch - rollup_id: {:?}", rollup_id);
+            return Ok(GetRawTransactionListResponse {
+                raw_transaction_list: Vec::new(),
+            });
+        }
+        // === new code end ===
+
         let rollup = Rollup::get(&rollup_id)?;
-        println!("Rollup: {:?}", rollup); // test code
-        println!("rollup_id comparison - LeaderChangeMessage: {:?}, Rollup: {:?}, same: {}", rollup_id, rollup.rollup_id, rollup_id == rollup.rollup_id); // test code
+        // println!("Rollup: {:?}", rollup); // test code
+        // println!("rollup_id comparison - LeaderChangeMessage: {:?}, Rollup: {:?}, same: {}", rollup_id, rollup.rollup_id, rollup_id == rollup.rollup_id); // test code
 
         let start_batch_number = rollup_metadata.provided_batch_number;
         let mut current_provided_batch_number = start_batch_number;
         let mut current_provided_transaction_order = rollup_metadata.provided_transaction_order;
 
-        println!("= after initialization ="); // test code
-        println!("start_batch_number: {:?}", start_batch_number); // test code
-        println!("current_provided_batch_number: {:?}", current_provided_batch_number); // test code
-        println!("current_provided_transaction_order: {:?}", current_provided_transaction_order); // test code
+        // println!("= after initialization ="); // test code
+        // println!("start_batch_number: {:?}", start_batch_number); // test code
+        // println!("current_provided_batch_number: {:?}", current_provided_batch_number); // test code
+        // println!("current_provided_transaction_order: {:?}", current_provided_transaction_order); // test code
 
+        // old code
+        /*
         let mut i = 0; // test code
 
         while let Ok(batch) = Batch::get(&rollup_id, current_provided_batch_number) {
@@ -136,7 +131,7 @@ impl RpcParameter<AppState> for GetRawTransactionList {
                 println!("else"); // test code
                 0
             };
-            println!("start_transaction_order: {:?}", start_transaction_order); // test code
+            // println!("start_transaction_order: {:?}", start_transaction_order); // test code
 
             raw_transaction_list.extend(extract_raw_transactions(
                 batch,
@@ -150,6 +145,27 @@ impl RpcParameter<AppState> for GetRawTransactionList {
             println!("current_provided_batch_number: {:?}", current_provided_batch_number); // test code
             println!("current_provided_transaction_order: {:?}", current_provided_transaction_order); // test code
         }
+        */
+        
+        // === new code start ===
+        while let Ok(batch) = Batch::get(&rollup_id, current_provided_batch_number) {
+            // println!("= {:?}th interation =", i); // test code
+
+            let mut transactions_in_batch = 0;
+            raw_transaction_list.extend(my_extract_raw_transactions(
+                batch,
+                epoch,
+                &mut transactions_in_batch,
+            ));
+
+            if transactions_in_batch == 0 { // All transactions in the batch have been processed
+                current_provided_batch_number += 1;    
+            }
+            
+            // i += 1; // test code
+            // println!("current_provided_batch_number: {:?}", current_provided_batch_number); // test code
+        }
+        // === new code end ===
 
         println!("= after while loop ="); // test code
         println!("current_provided_batch_number: {:?}", current_provided_batch_number); // test code
@@ -204,6 +220,8 @@ impl RpcParameter<AppState> for GetRawTransactionList {
 
         mut_rollup_metadata.provided_batch_number = current_provided_batch_number;
         mut_rollup_metadata.provided_transaction_order = current_provided_transaction_order;
+
+        mut_rollup_metadata.provided_epoch = epoch; // new code
 
         let leader_tx_orderer_rpc_info = cluster
             .get_tx_orderer_rpc_info(&self.leader_change_message.next_leader_tx_orderer_address)
@@ -547,35 +565,75 @@ fn extract_raw_transactions(batch: Batch, start_transaction_order: u64) -> Vec<S
         .collect()
 }
 
+// === new code start ===
+fn my_extract_raw_transactions(batch: Batch, epoch: u64, transactions_in_batch: &mut i32) -> Vec<String> {
+    batch
+        .raw_transaction_list
+        .into_iter()
+        .filter_map(|transaction| {
+            match transaction {
+                RawTransaction::Eth(eth_tx) => {
+                    match eth_tx.epoch {
+                        Some(tx_epoch) if tx_epoch >= epoch => {
+                            *transactions_in_batch += 1; // Unprocessed transactions still in the batch
+                            Some(eth_tx.raw_transaction)
+                        }
+                        _ => None,
+                    }
+                }
+                RawTransaction::EthBundle(_) => None,
+            }          
+        })
+        .collect()
+}
+
+fn get_last_valid_completed_epoch(
+    completed_epoch: &BTreeSet<u64>,
+    provided_epoch: u64,
+) -> Result<u64, Error> {
+    let mut last_valid_epoch = provided_epoch;
+
+    for &epoch in completed_epoch {
+        if epoch == last_valid_epoch + 1 {
+            last_valid_epoch += 1;
+        } else if epoch > last_valid_epoch {
+            break;
+        }
+    }
+
+    Ok(last_valid_epoch)
+}
+// === new code end ===
+
 fn get_last_valid_transaction_order(
     can_provide_transaction_orders: &BTreeSet<u64>,
     provided_transaction_order: i64,
 ) -> i64 {
-    println!("=== get_last_valid_transaction_order 시작 ==="); // test code
+    // println!("=== get_last_valid_transaction_order 시작 ==="); // test code
     
     let mut last_valid_transaction_order = provided_transaction_order;
 
-    println!("last_valid_transaction_order(before iteration): {:?}", last_valid_transaction_order); // test code
+    // println!("last_valid_transaction_order(before iteration): {:?}", last_valid_transaction_order); // test code
     
-    let mut iteration_count = 0; // test code
+    // let mut iteration_count = 0; // test code
 
     for &transaction_order in can_provide_transaction_orders {
-        iteration_count += 1; // test code
+        // iteration_count += 1; // test code
 
         let transaction_order = transaction_order as i64;
 
         if transaction_order == last_valid_transaction_order + 1 {
             last_valid_transaction_order += 1;
         } else if transaction_order > last_valid_transaction_order {
-            println!("[{:?}] transaction_order > last_valid_transaction_order", transaction_order); // test code
+            // println!("[{:?}] transaction_order > last_valid_transaction_order", transaction_order); // test code
             break;
         }
     }
 
-    println!("last_valid_transaction_order(after iteration): {:?}", last_valid_transaction_order); // test code
-    println!("iteration_count: {:?}", iteration_count); // test code
+    // println!("last_valid_transaction_order(after iteration): {:?}", last_valid_transaction_order); // test code
+    // println!("iteration_count: {:?}", iteration_count); // test code
 
-    println!("=== get_last_valid_transaction_order 종료 ==="); // test code
+    // println!("=== get_last_valid_transaction_order 종료 ==="); // test code
 
     last_valid_transaction_order as i64
 }

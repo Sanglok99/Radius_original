@@ -7,6 +7,22 @@ use crate::{error::Error, types::ClusterId};
 
 use super::RollupId;
 
+// === new code start ===
+#[derive(Clone, Debug, Deserialize, Serialize, Model)]
+#[kvstore(key(rollup_id: &RollupId))]
+pub struct CanProvideEpochInfo {
+    pub completed_epoch: BTreeSet<u64>,
+}
+
+impl Default for CanProvideEpochInfo {
+    fn default() -> Self {
+        Self {
+            completed_epoch: BTreeSet::new(),
+        }
+    }
+}
+// === new code end ===
+
 #[derive(Clone, Debug, Deserialize, Serialize, Model)]
 #[kvstore(key(rollup_id: &RollupId))]
 pub struct CanProvideTransactionInfo {
@@ -67,6 +83,8 @@ pub struct RollupMetadata {
 
     pub provided_batch_number: u64,
     pub provided_transaction_order: i64,
+
+    pub provided_epoch: u64, // new code
 }
 
 impl Default for RollupMetadata {
@@ -80,6 +98,8 @@ impl Default for RollupMetadata {
 
             provided_batch_number: 0,
             provided_transaction_order: -1,
+
+            provided_epoch: 0, // new code
         }
     }
 }
