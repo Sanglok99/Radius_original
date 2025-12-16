@@ -84,6 +84,7 @@ pub struct RollupMetadata {
     pub provided_batch_number: u64,
     pub provided_transaction_order: i64,
 
+    pub completed_batch_number: u64, // new code
     pub provided_epoch: u64, // new code
 }
 

@@ -108,8 +108,11 @@ impl RpcParameter<AppState> for GetRawTransactionList {
         // println!("Rollup: {:?}", rollup); // test code
         // println!("rollup_id comparison - LeaderChangeMessage: {:?}, Rollup: {:?}, same: {}", rollup_id, rollup.rollup_id, rollup_id == rollup.rollup_id); // test code
 
-        let start_batch_number = rollup_metadata.provided_batch_number;
-        let mut current_provided_batch_number = start_batch_number;
+        // let start_batch_number = rollup_metadata.provided_batch_number; // old code
+        let last_completed_batch_number = rollup_metadata.completed_batch_number; // new code
+        // let mut current_provided_batch_number = start_batch_number; // old code
+        let mut current_provided_batch_number = last_completed_batch_number + 1; // new code
+        let mut current_completed_batch_number = last_completed_batch_number; // new code
         let mut current_provided_transaction_order = rollup_metadata.provided_transaction_order;
 
         // println!("= after initialization ="); // test code
@@ -159,18 +162,21 @@ impl RpcParameter<AppState> for GetRawTransactionList {
             ));
 
             if transactions_in_batch == 0 { // All transactions in the batch have been processed
-                current_provided_batch_number += 1;    
+                current_completed_batch_number += 1;    
             }
             
+            current_provided_batch_number += 1;
+            current_provided_transaction_order = -1;
             // i += 1; // test code
             // println!("current_provided_batch_number: {:?}", current_provided_batch_number); // test code
         }
         // === new code end ===
 
-        println!("= after while loop ="); // test code
-        println!("current_provided_batch_number: {:?}", current_provided_batch_number); // test code
-        println!("current_provided_transaction_order: {:?}", current_provided_transaction_order); // test code
-
+        // println!("= after while loop ="); // test code
+        // println!("current_provided_batch_number: {:?}", current_provided_batch_number); // test code
+        // println!("current_provided_transaction_order: {:?}", current_provided_transaction_order); // test code
+        
+        // old code
         if let Ok(can_provide_transaction_info) = CanProvideTransactionInfo::get(&rollup_id) {
             if let Some(can_provide_transaction_orderers) = can_provide_transaction_info
                 .can_provide_transaction_orders_per_batch
@@ -180,7 +186,7 @@ impl RpcParameter<AppState> for GetRawTransactionList {
                     can_provide_transaction_orderers,
                     current_provided_transaction_order,
                 );
-                println!("valid_end_transaction_order: {:?}", valid_end_transaction_order); // test code
+                // println!("valid_end_transaction_order: {:?}", valid_end_transaction_order); // test code
 
                 fetch_and_append_transactions(
                     &rollup_id,
@@ -195,12 +201,43 @@ impl RpcParameter<AppState> for GetRawTransactionList {
                 if current_provided_transaction_order
                     == rollup.max_transaction_count_per_batch as i64 - 1
                 {
-                    println!("if current_provided_transaction_order == rollup.max_transaction_count_per_batch as i64 - 1"); // test code
+                    // println!("if current_provided_transaction_order == rollup.max_transaction_count_per_batch as i64 - 1"); // test code
                     current_provided_batch_number += 1;
                     current_provided_transaction_order = -1;
                 }
             }
         }
+
+        // === new code start ===
+        if let Ok(can_provide_transaction_info) = CanProvideTransactionInfo::get(&rollup_id) {
+            if let Some(can_provide_transaction_orderers) = can_provide_transaction_info
+                .can_provide_transaction_orders_per_batch
+                .get(&current_provided_batch_number)
+            {
+                let valid_end_transaction_order = get_last_valid_transaction_order(
+                    can_provide_transaction_orderers,
+                    current_provided_transaction_order,
+                );
+        
+                my_fetch_and_append_transactions(
+                    &rollup_id,
+                    current_provided_batch_number,
+                    (current_provided_transaction_order + 1) as u64,
+                    valid_end_transaction_order,
+                    &mut raw_transaction_list,
+                )?;
+        
+                current_provided_transaction_order = valid_end_transaction_order;
+        
+                if current_provided_transaction_order
+                    == rollup.max_transaction_count_per_batch as i64 - 1
+                {
+                    current_provided_batch_number += 1;
+                    current_provided_transaction_order = -1;
+                }
+            }
+        }
+        // === new code end ===
 
         let cluster = Cluster::get(
             rollup.platform,
@@ -214,13 +251,14 @@ impl RpcParameter<AppState> for GetRawTransactionList {
         let mut mut_rollup_metadata = RollupMetadata::get_mut(&rollup_id)?;
 
         let mut batch_number_list_to_delete = Vec::new();
-        for batch_number in start_batch_number..current_provided_batch_number {
+        for batch_number in (last_completed_batch_number + 1)..current_completed_batch_number {
             batch_number_list_to_delete.push(batch_number);
         }
 
         mut_rollup_metadata.provided_batch_number = current_provided_batch_number;
         mut_rollup_metadata.provided_transaction_order = current_provided_transaction_order;
 
+        mut_rollup_metadata.completed_batch_number = current_completed_batch_number; // new code
         mut_rollup_metadata.provided_epoch = epoch; // new code
 
         let leader_tx_orderer_rpc_info = cluster
@@ -233,11 +271,12 @@ impl RpcParameter<AppState> for GetRawTransactionList {
                 Error::TxOrdererInfoNotFound
             })?;
 
+        /*
         println!("leader_tx_orderer_rpc_info: {:?}", leader_tx_orderer_rpc_info); // test code
         println!("leader_tx_orderer_rpc_info.cluster_rpc_url: {:?}", leader_tx_orderer_rpc_info.cluster_rpc_url); // test code
         println!("leader_tx_orderer_rpc_info.external_rpc_url: {:?}", leader_tx_orderer_rpc_info.external_rpc_url); // test code
         println!("leader_tx_orderer_rpc_info.tx_orderer_address: {:?}", leader_tx_orderer_rpc_info.tx_orderer_address); // test code
-
+        */
         // println!("=== rollup.platform value: {:?} ===", rollup.platform); // test code. This shows Ethereum/Holesky/Local
         // tracing::info!("rollup.platform value: {:?}", rollup.platform); // test code. This shows Ethereum/Holesky/Local
         
@@ -639,6 +678,32 @@ fn get_last_valid_transaction_order(
 }
 
 fn fetch_and_append_transactions(
+    rollup_id: &RollupId,
+    batch_number: u64,
+    start_transaction_order: u64,
+    last_valid_transaction_order: i64,
+    raw_transaction_list: &mut Vec<String>,
+) -> Result<(), RpcError> {
+    if last_valid_transaction_order < start_transaction_order as i64 {
+        return Ok(());
+    }
+
+    for transaction_order in
+        start_transaction_order..=last_valid_transaction_order.try_into().unwrap()
+    {
+        let (raw_transaction, _) =
+            RawTransactionModel::get(rollup_id, batch_number, transaction_order)?;
+        let raw_transaction = match raw_transaction {
+            RawTransaction::Eth(EthRawTransaction { raw_transaction, .. }) => raw_transaction, // new code
+            // RawTransaction::Eth(EthRawTransaction(data)) => data, // old code
+            RawTransaction::EthBundle(EthRawBundleTransaction(data)) => data,
+        };
+        raw_transaction_list.push(raw_transaction);
+    }
+    Ok(())
+}
+
+fn my_fetch_and_append_transactions(
     rollup_id: &RollupId,
     batch_number: u64,
     start_transaction_order: u64,
