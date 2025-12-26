@@ -25,8 +25,8 @@ impl RpcParameter<AppState> for SendRawTransaction {
 
         // === test code begin ===
         println!("=== SendRawTransaction 시작 ===");
-        println!("Rollup ID: {}", self.rollup_id);
-        println!("Transaction Type: {:?}", self.raw_transaction);
+        // println!("Rollup ID: {}", self.rollup_id);
+        // println!("Transaction Type: {:?}", self.raw_transaction);
         // === test code end ===
 
         let rollup = Rollup::get(&self.rollup_id)?;
@@ -63,6 +63,8 @@ impl RpcParameter<AppState> for SendRawTransaction {
             }
             RawTransaction::EthBundle(_) => {}
         }
+
+        println!("cluster_metadata.epoch: {:?}", cluster_metadata.epoch); // test code
 
         let signer = context.get_signer(rollup.platform).await.map_err(|_| {
             tracing::error!("Signer not found for platform {:?}", rollup.platform);
@@ -174,7 +176,7 @@ impl RpcParameter<AppState> for SendRawTransaction {
                 finalize_batch(context.clone(), &self.rollup_id, batch_number);
             }
 
-            println!("Order Commitment Type: {:?}", rollup.order_commitment_type);
+            // println!("Order Commitment Type: {:?}", rollup.order_commitment_type);
 
             let order_commitment = issue_order_commitment(
                 context.clone(),
@@ -232,6 +234,8 @@ impl RpcParameter<AppState> for SendRawTransaction {
                     }
                 }
             }
+
+            println!("=== SendRawTransaction 종료(leader node) ===");
 
             match rollup.order_commitment_type {
                 OrderCommitmentType::TransactionHash => Ok(OrderCommitment::Single(
@@ -293,6 +297,8 @@ pub fn sync_raw_transaction(
     order_commitment: OrderCommitment,
     is_direct_sent: bool,
 ) {
+    println!("=== Sync Raw Transaction 시작 ===");
+
     tokio::spawn(async move {
         let other_cluster_rpc_url_list = cluster.get_other_cluster_rpc_url_list();
         if other_cluster_rpc_url_list.is_empty() {
@@ -320,7 +326,9 @@ pub fn sync_raw_transaction(
                 &sync_raw_transaction,
                 Id::Null,
             )
-            .await
+            .await;
+
+        println!("=== Sync Raw Transaction 종료 ===");
     });
 }
 

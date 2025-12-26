@@ -16,6 +16,8 @@ use crate::{
     task::{send_transaction_list_to_mev_searcher, MevTargetTransaction},
 };
 
+use super::send_end_signal_to_epoch_leader; // new code
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct GetRawTransactionList {
     pub leader_change_message: LeaderChangeMessage,
@@ -55,7 +57,7 @@ impl RpcParameter<AppState> for GetRawTransactionList {
     }
 
     async fn handler(self, context: AppState) -> Result<Self::Response, RpcError> {
-        println!("=== GetRawTransactionList 시작 ==="); // test code
+        println!("=== GetRawTransactionList handler() 시작 ==="); // test code
 
         let start_get_raw_transaction_list_time = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -65,7 +67,7 @@ impl RpcParameter<AppState> for GetRawTransactionList {
         let mut raw_transaction_list = Vec::new();
 
         let rollup_id = self.leader_change_message.rollup_id.clone();
-        println!("LeaderChangeMessage rollup_id: {:?}", rollup_id); // test code
+        // println!("LeaderChangeMessage rollup_id: {:?}", rollup_id); // test code
 
         let rollup_metadata = match RollupMetadata::get(&rollup_id) {
             Ok(metadata) => metadata,
@@ -104,6 +106,8 @@ impl RpcParameter<AppState> for GetRawTransactionList {
         }
         // === new code end ===
 
+        println!("epoch: {:?}", epoch); // test code
+
         let rollup = Rollup::get(&rollup_id)?;
         // println!("Rollup: {:?}", rollup); // test code
         // println!("rollup_id comparison - LeaderChangeMessage: {:?}, Rollup: {:?}, same: {}", rollup_id, rollup.rollup_id, rollup_id == rollup.rollup_id); // test code
@@ -111,9 +115,10 @@ impl RpcParameter<AppState> for GetRawTransactionList {
         // let start_batch_number = rollup_metadata.provided_batch_number; // old code
         let last_completed_batch_number = rollup_metadata.completed_batch_number; // new code
         // let mut current_provided_batch_number = start_batch_number; // old code
-        let mut current_provided_batch_number = last_completed_batch_number + 1; // new code
         let mut current_completed_batch_number = last_completed_batch_number; // new code
-        let mut current_provided_transaction_order = rollup_metadata.provided_transaction_order;
+        let mut current_provided_batch_number = last_completed_batch_number + 1; // new code
+        // let mut current_provided_transaction_order = rollup_metadata.provided_transaction_order; // old code
+        let mut current_provided_transaction_order = -1; // new code
 
         // println!("= after initialization ="); // test code
         // println!("start_batch_number: {:?}", start_batch_number); // test code
@@ -151,7 +156,7 @@ impl RpcParameter<AppState> for GetRawTransactionList {
         */
         
         // === new code start ===
-        while let Ok(batch) = Batch::get(&rollup_id, current_provided_batch_number) {
+        while let Ok(batch) = Batch::get(&rollup_id, current_provided_batch_number as u64) { // current_provided_batch_number is i64, but Batch::get requires u64. This variable is always a non-negative integer so this won't cause an error.
             // println!("= {:?}th interation =", i); // test code
 
             let mut transactions_in_batch = 0;
@@ -176,6 +181,7 @@ impl RpcParameter<AppState> for GetRawTransactionList {
         // println!("current_provided_batch_number: {:?}", current_provided_batch_number); // test code
         // println!("current_provided_transaction_order: {:?}", current_provided_transaction_order); // test code
         
+        /*
         // old code
         if let Ok(can_provide_transaction_info) = CanProvideTransactionInfo::get(&rollup_id) {
             if let Some(can_provide_transaction_orderers) = can_provide_transaction_info
@@ -207,12 +213,15 @@ impl RpcParameter<AppState> for GetRawTransactionList {
                 }
             }
         }
+        */
+
+        println!("current_provided_batch_number: {:?}", current_provided_batch_number); // test code
 
         // === new code start ===
         if let Ok(can_provide_transaction_info) = CanProvideTransactionInfo::get(&rollup_id) {
             if let Some(can_provide_transaction_orderers) = can_provide_transaction_info
                 .can_provide_transaction_orders_per_batch
-                .get(&current_provided_batch_number)
+                .get(&(current_provided_batch_number as u64))
             {
                 let valid_end_transaction_order = get_last_valid_transaction_order(
                     can_provide_transaction_orderers,
@@ -221,23 +230,28 @@ impl RpcParameter<AppState> for GetRawTransactionList {
         
                 my_fetch_and_append_transactions(
                     &rollup_id,
-                    current_provided_batch_number,
+                    current_provided_batch_number as u64,
                     (current_provided_transaction_order + 1) as u64,
                     valid_end_transaction_order,
                     &mut raw_transaction_list,
+                    &epoch,
                 )?;
         
-                current_provided_transaction_order = valid_end_transaction_order;
+                // current_provided_transaction_order = valid_end_transaction_order;
         
+                /*
                 if current_provided_transaction_order
                     == rollup.max_transaction_count_per_batch as i64 - 1
                 {
                     current_provided_batch_number += 1;
                     current_provided_transaction_order = -1;
                 }
+                */
             }
         }
         // === new code end ===
+
+        println!("can_provide_transaction_info done"); // test code
 
         let cluster = Cluster::get(
             rollup.platform,
@@ -255,7 +269,7 @@ impl RpcParameter<AppState> for GetRawTransactionList {
             batch_number_list_to_delete.push(batch_number);
         }
 
-        mut_rollup_metadata.provided_batch_number = current_provided_batch_number;
+        mut_rollup_metadata.provided_batch_number = current_provided_batch_number as u64;
         mut_rollup_metadata.provided_transaction_order = current_provided_transaction_order;
 
         mut_rollup_metadata.completed_batch_number = current_completed_batch_number; // new code
@@ -271,14 +285,13 @@ impl RpcParameter<AppState> for GetRawTransactionList {
                 Error::TxOrdererInfoNotFound
             })?;
 
-        /*
         println!("leader_tx_orderer_rpc_info: {:?}", leader_tx_orderer_rpc_info); // test code
         println!("leader_tx_orderer_rpc_info.cluster_rpc_url: {:?}", leader_tx_orderer_rpc_info.cluster_rpc_url); // test code
         println!("leader_tx_orderer_rpc_info.external_rpc_url: {:?}", leader_tx_orderer_rpc_info.external_rpc_url); // test code
         println!("leader_tx_orderer_rpc_info.tx_orderer_address: {:?}", leader_tx_orderer_rpc_info.tx_orderer_address); // test code
-        */
-        // println!("=== rollup.platform value: {:?} ===", rollup.platform); // test code. This shows Ethereum/Holesky/Local
-        // tracing::info!("rollup.platform value: {:?}", rollup.platform); // test code. This shows Ethereum/Holesky/Local
+
+        println!("=== rollup.platform value: {:?} ===", rollup.platform); // test code. This shows Ethereum/Holesky/Local
+        println!("rollup.platform value: {:?}", rollup.platform); // test code. This shows Ethereum/Holesky/Local
         
         let signer = context.get_signer(rollup.platform).await.map_err(|_| {
             tracing::error!("Signer not found for platform {:?}", rollup.platform);
@@ -305,7 +318,7 @@ impl RpcParameter<AppState> for GetRawTransactionList {
         println!("mut_cluster_metadata.cluster_id: {:?}", mut_cluster_metadata.cluster_id); // test code
         println!("mut_cluster_metadata.platform_block_height: {:?}", mut_cluster_metadata.platform_block_height); // test code
         println!("mut_cluster_metadata.is_leader: {:?}", mut_cluster_metadata.is_leader); // test code
-        println!("mut_cluster_metadata.leader_tx_orderer_rpc_info: {:?}", mut_cluster_metadata.leader_tx_orderer_rpc_info); // test code
+        println!("mut_cluster_metadata.leader_tx_orderer_rpc_info: {:?}", mut_cluster_metadata.leader_tx_orderer_rpc_info); // test code        
 
         if mut_cluster_metadata.is_leader == false {
             println!("*** if mut_cluster_metadata.is_leader == false ***"); // test code
@@ -361,6 +374,8 @@ impl RpcParameter<AppState> for GetRawTransactionList {
             }
         }
 
+        let was_leader = mut_cluster_metadata.is_leader; // new code
+
         mut_cluster_metadata.platform_block_height =
             self.leader_change_message.platform_block_height;
         mut_cluster_metadata.is_leader = is_next_leader;
@@ -372,20 +387,60 @@ impl RpcParameter<AppState> for GetRawTransactionList {
         println!("mut_cluster_metadata.is_leader: {:?}", mut_cluster_metadata.is_leader); // test code
         println!("mut_cluster_metadata.leader_tx_orderer_rpc_info: {:?}", mut_cluster_metadata.leader_tx_orderer_rpc_info); // test code
 
+        // === new code start ===
+        let old_epoch = mut_cluster_metadata.epoch.unwrap_or(0);
+
+        println!("old_epoch: {:?}", old_epoch); // test code
+
+        // old_epoch의 리더 RPC URL을 epoch_leader_map에 저장 (update 전에 저장해야 함)
+        if let Some(current_leader_rpc_info) = cluster.get_tx_orderer_rpc_info(&self.leader_change_message.current_leader_tx_orderer_address) {
+            if let Some(cluster_rpc_url) = &current_leader_rpc_info.cluster_rpc_url {
+                mut_cluster_metadata.epoch_leader_map.insert(old_epoch, cluster_rpc_url.clone());
+            }
+        }
+
+        // get_raw_transaction_list 요청을 받은 노드에서 epoch를 증가시킴
+        if self.leader_change_message.next_leader_tx_orderer_address != self.leader_change_message.current_leader_tx_orderer_address {
+            mut_cluster_metadata.epoch = Some(old_epoch + 1);
+
+            // new_epoch의 리더(next_leader) RPC URL도 epoch_leader_map에 저장
+            let new_epoch_value = old_epoch + 1;
+            if let Some(next_leader_rpc_info) = cluster.get_tx_orderer_rpc_info(&self.leader_change_message.next_leader_tx_orderer_address) {
+                if let Some(cluster_rpc_url) = &next_leader_rpc_info.cluster_rpc_url {
+                    mut_cluster_metadata.epoch_leader_map.insert(new_epoch_value, cluster_rpc_url.clone());
+                }
+            }
+        }
+        let new_epoch = mut_cluster_metadata.epoch.unwrap_or(0); // new code
+
+        // old_epoch의 리더 RPC URL 가져오기 (send_end_signal 전송용)
+        let epoch_leader_rpc_url = mut_cluster_metadata.epoch_leader_map.get(&old_epoch)
+            .cloned()
+            .unwrap_or_default();
+        // === new code end ===
+
+        println!("new_epoch: {:?}", new_epoch); // test code
+
         let signer = context.get_signer(rollup.platform).await?;
         let current_tx_orderer_address = signer.address();
 
+        // 리더가 바뀌었다는 것과 epoch가 증가했다는 사실을 다른 노드들에게 전파해야 함
         sync_leader_tx_orderer(
             context.clone(),
             cluster,
-            current_tx_orderer_address,
+            // current_tx_orderer_address, // old code(not used)
             self.leader_change_message.clone(),
             self.rollup_signature,
             mut_rollup_metadata.batch_number,
             mut_rollup_metadata.transaction_order,
             mut_rollup_metadata.provided_batch_number,
             mut_rollup_metadata.provided_transaction_order,
+            mut_rollup_metadata.provided_epoch, // new code
+            mut_rollup_metadata.completed_batch_number, // new code
             &self.leader_change_message.current_leader_tx_orderer_address.clone(), // new code
+            old_epoch, // new code
+            new_epoch, // new code
+            epoch_leader_rpc_url.clone(), // new code
         )
         .await;
 
@@ -466,6 +521,8 @@ impl RpcParameter<AppState> for GetRawTransactionList {
             }
         }
 
+        println!("=== GetRawTransactionList handler() 종료(노드 주소: {:?}) ===", current_tx_orderer_address); // test code
+
         Ok(GetRawTransactionListResponse {
             raw_transaction_list,
         })
@@ -475,18 +532,22 @@ impl RpcParameter<AppState> for GetRawTransactionList {
 pub async fn sync_leader_tx_orderer(
     context: AppState,
     cluster: Cluster,
-    current_tx_orderer_address: &Address,
+    // current_tx_orderer_address: &Address, // old code(not used)
     leader_change_message: LeaderChangeMessage,
     rollup_signature: Signature,
     batch_number: u64,
     transaction_order: u64,
     provided_batch_number: u64,
     provided_transaction_order: i64,
+    provided_epoch: u64, // new code
+    completed_batch_number: i64, // new code
     current_leader_tx_orderer_address: &Address, // new code
+    old_epoch: u64, // new code
+    new_epoch: u64, // new code
+    epoch_leader_rpc_url: String, // new code
 ) {
-    println!("=== sync_leader_tx_orderer 시작 ==="); // test code
+    println!("=== 🔄⚙️ sync_leader_tx_orderer 시작 ⚙️🔄 ==="); // test code
     println!("next_leader_tx_orderer_rpc_info.tx_orderer_address: {}", &leader_change_message.next_leader_tx_orderer_address); // test code
-    println!("current_tx_orderer_address: {}", current_tx_orderer_address); // test code
     println!("current_leader_tx_orderer_address: {}", current_leader_tx_orderer_address); // test code
 
     let mut other_cluster_rpc_url_list = cluster.get_other_cluster_rpc_url_list();
@@ -498,14 +559,14 @@ pub async fn sync_leader_tx_orderer(
     if let Some(next_leader_tx_orderer_rpc_info) =
         cluster.get_tx_orderer_rpc_info(&leader_change_message.next_leader_tx_orderer_address)
     {
-        println!("if let Some(next_leader_tx_orderer_rpc_info) == true"); // test code
+        // println!("if let Some(next_leader_tx_orderer_rpc_info) == true"); // test code
 
         let next_leader_tx_orderer_cluster_rpc_url = next_leader_tx_orderer_rpc_info
             .cluster_rpc_url
             .clone()
             .unwrap();
 
-        println!("next_leader_tx_orderer_cluster_rpc_url: {:?}", next_leader_tx_orderer_cluster_rpc_url); // test code
+        // println!("next_leader_tx_orderer_cluster_rpc_url: {:?}", next_leader_tx_orderer_cluster_rpc_url); // test code
 
         // Filter out the next leader's cluster URL from the list
         other_cluster_rpc_url_list = other_cluster_rpc_url_list
@@ -514,17 +575,25 @@ pub async fn sync_leader_tx_orderer(
             .collect();
 
         let parameter = SyncLeaderTxOrderer {
-            leader_change_message,
+            // leader_change_message, // old code
+            leader_change_message: leader_change_message.clone(), // new code
+
             rollup_signature,
             batch_number,
             transaction_order,
             provided_batch_number,
             provided_transaction_order,
+            provided_epoch: provided_epoch, // new code
+            completed_batch_number: completed_batch_number, // new code
+
+            old_epoch: Some(old_epoch), // new code
+            new_epoch: Some(new_epoch), // new code
         };
 
+        // 리더가 바뀔 때!!!
         // if next_leader_tx_orderer_rpc_info.tx_orderer_address != current_tx_orderer_address { // old code
         if next_leader_tx_orderer_rpc_info.tx_orderer_address != current_leader_tx_orderer_address { // new code
-            println!("if next_leader_tx_orderer_rpc_info.tx_orderer_address != current_leader_tx_orderer_address"); // test code
+            // println!("if next_leader_tx_orderer_rpc_info.tx_orderer_address != current_leader_tx_orderer_address"); // test code
 
             // Directly request the next leader tx_orderer to sync
             let start_sync_leader_tx_order_time = SystemTime::now()
@@ -559,6 +628,9 @@ pub async fn sync_leader_tx_orderer(
 
             // Fire and forget to the rest of the cluster nodes asynchronously
             let urls = other_cluster_rpc_url_list.clone();
+            
+            /*
+            // old code
             tokio::spawn(async move {
                 let _ = context
                     .rpc_client()
@@ -570,18 +642,83 @@ pub async fn sync_leader_tx_orderer(
                     )
                     .await;
             });
-        }
+            */
 
-        println!("=== sync_leader_tx_orderer 종료 ==="); // test code
+            // === new code start ===
+            let context_clone = context.clone();
+
+            tokio::spawn(async move {
+                let _ = context_clone
+                    .rpc_client()
+                    .fire_and_forget_multicast(
+                        urls,
+                        SyncLeaderTxOrderer::method(),
+                        &parameter,
+                        Id::Null,
+                    )
+                    .await;
+            });
+
+            /*
+            send_end_signal_to_epoch_leader(
+                context.clone(),
+                leader_change_message.rollup_id.clone(),
+                old_epoch,
+                epoch_leader_rpc_url.clone(),
+            );
+            */
+            // === new code end ===
+
+            /*
+            // === new code: Epoch 전파 to non-leader nodes ===
+            // Get current epoch from cluster metadata
+            let rollup = Rollup::get(&leader_change_message.rollup_id).ok();
+            if let Some(rollup) = rollup {
+                if let Ok(cluster_metadata) = ClusterMetadata::get(
+                    rollup.platform,
+                    rollup.liveness_service_provider,
+                    &rollup.cluster_id,
+                ) {
+                    let current_epoch = cluster_metadata.epoch.unwrap_or(0);
+                    let new_epoch = current_epoch + 1; // 리더 변경 시 epoch 증가
+                    
+                    let epoch_parameter = SyncEpoch {
+                        rollup_id: leader_change_message.rollup_id.clone(),
+                        epoch: new_epoch,
+                    };
+                    
+                    // non-leader 노드들에게만 epoch 전파
+                    let epoch_urls = other_cluster_rpc_url_list.clone();
+                    tokio::spawn(async move {
+                        let _ = context
+                            .rpc_client()
+                            .fire_and_forget_multicast(
+                                epoch_urls,
+                                SyncEpoch::method(),
+                                &epoch_parameter,
+                                Id::Null,
+                            )
+                            .await;
+                    });
+                }
+            }
+            */
+            // === new code end ===
+
+            println!("=== 🔄⚙️ sync_leader_tx_orderer 종료(리더가 바뀔 때) ⚙️🔄 ==="); // test code
+        }
+        else {
+            println!("=== 🔄⚙️ sync_leader_tx_orderer 종료(리더가 바뀌지 않을 때) ⚙️🔄 ==="); // test code
+        }
     } else {
-        println!("else"); // test code
+        // println!("else"); // test code
         
         tracing::error!(
             "Next leader tx orderer RPC info not found for address {:?}",
             leader_change_message.next_leader_tx_orderer_address
         );
 
-        println!("=== sync_leader_tx_orderer 종료 ==="); // test code
+        println!("=== 🔄⚙️ sync_leader_tx_orderer 종료(next_leader_tx_orderer_rpc_info not found) ⚙️🔄 ==="); // test code
     }
 }
 
@@ -594,7 +731,7 @@ fn extract_raw_transactions(batch: Batch, start_transaction_order: u64) -> Vec<S
             if (i as u64) >= start_transaction_order {
                 Some(match transaction {
                     RawTransaction::Eth(EthRawTransaction { raw_transaction, .. }) => raw_transaction, // new code
-                    // RawTransaction::Eth(EthRawTransaction(data)) => data,
+                    // RawTransaction::Eth(EthRawTransaction(data)) => data, // old code
                     RawTransaction::EthBundle(EthRawBundleTransaction(data)) => data,
                 })
             } else {
@@ -605,7 +742,7 @@ fn extract_raw_transactions(batch: Batch, start_transaction_order: u64) -> Vec<S
 }
 
 // === new code start ===
-fn my_extract_raw_transactions(batch: Batch, epoch: u64, transactions_in_batch: &mut i32) -> Vec<String> {
+pub fn my_extract_raw_transactions(batch: Batch, epoch: u64, transactions_in_batch: &mut i32) -> Vec<String> {
     batch
         .raw_transaction_list
         .into_iter()
@@ -626,7 +763,7 @@ fn my_extract_raw_transactions(batch: Batch, epoch: u64, transactions_in_batch: 
         .collect()
 }
 
-fn get_last_valid_completed_epoch(
+pub fn get_last_valid_completed_epoch(
     completed_epoch: &BTreeSet<u64>,
     provided_epoch: u64,
 ) -> Result<u64, Error> {
@@ -644,7 +781,7 @@ fn get_last_valid_completed_epoch(
 }
 // === new code end ===
 
-fn get_last_valid_transaction_order(
+pub fn get_last_valid_transaction_order(
     can_provide_transaction_orders: &BTreeSet<u64>,
     provided_transaction_order: i64,
 ) -> i64 {
@@ -703,12 +840,14 @@ fn fetch_and_append_transactions(
     Ok(())
 }
 
-fn my_fetch_and_append_transactions(
+// === new code start ===
+pub fn my_fetch_and_append_transactions(
     rollup_id: &RollupId,
     batch_number: u64,
     start_transaction_order: u64,
     last_valid_transaction_order: i64,
     raw_transaction_list: &mut Vec<String>,
+    epoch: &u64,
 ) -> Result<(), RpcError> {
     if last_valid_transaction_order < start_transaction_order as i64 {
         return Ok(());
@@ -719,12 +858,27 @@ fn my_fetch_and_append_transactions(
     {
         let (raw_transaction, _) =
             RawTransactionModel::get(rollup_id, batch_number, transaction_order)?;
-        let raw_transaction = match raw_transaction {
-            RawTransaction::Eth(EthRawTransaction { raw_transaction, .. }) => raw_transaction, // new code
-            // RawTransaction::Eth(EthRawTransaction(data)) => data, // old code
-            RawTransaction::EthBundle(EthRawBundleTransaction(data)) => data,
-        };
-        raw_transaction_list.push(raw_transaction);
+        
+        match raw_transaction {
+            RawTransaction::Eth(eth_tx) => {
+                // 주어진 epoch보다 큰 epoch를 가진 RawTransaction을 거르고 (필터링)
+                match eth_tx.epoch {
+                    Some(tx_epoch) if tx_epoch > *epoch => {
+                        // epoch가 주어진 epoch보다 크면 제외 (건너뛰기)
+                        continue;
+                    }
+                    _ => {
+                        // epoch가 없거나, epoch가 주어진 epoch보다 작거나 같으면 포함
+                        raw_transaction_list.push(eth_tx.raw_transaction);
+                    }
+                }
+            }
+            RawTransaction::EthBundle(EthRawBundleTransaction(data)) => {
+                // EthBundle은 epoch 필터링 없이 포함
+                raw_transaction_list.push(data);
+            }
+        }
     }
     Ok(())
 }
+// === new code end ===

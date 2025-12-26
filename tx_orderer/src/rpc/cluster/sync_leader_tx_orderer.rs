@@ -5,6 +5,8 @@ use radius_sdk::json_rpc::server::ProcessPriority;
 use super::LeaderChangeMessage;
 use crate::rpc::prelude::*;
 
+use crate::rpc::cluster::SendEndSignal; // new code
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SyncLeaderTxOrderer {
     pub leader_change_message: LeaderChangeMessage,
@@ -15,6 +17,12 @@ pub struct SyncLeaderTxOrderer {
 
     pub provided_batch_number: u64,
     pub provided_transaction_order: i64,
+
+    pub provided_epoch: u64, // new code
+    pub completed_batch_number: i64, // new code
+
+    pub old_epoch: Option<u64>, // new code
+    pub new_epoch: Option<u64>, // new code
 }
 
 impl RpcParameter<AppState> for SyncLeaderTxOrderer {
@@ -29,8 +37,10 @@ impl RpcParameter<AppState> for SyncLeaderTxOrderer {
     }
 
     async fn handler(self, context: AppState) -> Result<Self::Response, RpcError> {
-        println!("=== SyncLeaderTxOrderer 시작 ==="); // test code
+        
+        println!("=== 🔄🔄🔄🔄🔄 SyncLeaderTxOrderer handler() 시작 🔄🔄🔄🔄🔄 ==="); // test code
 
+        /*
         println!("self.rollup_signature: {:?}", self.rollup_signature); // test code
         println!("self.batch_number: {:?}", self.batch_number); // test code
         println!("self.transaction_order: {:?}", self.transaction_order); // test code
@@ -40,6 +50,7 @@ impl RpcParameter<AppState> for SyncLeaderTxOrderer {
         println!("self.leader_change_message.platform_block_height: {:?}", self.leader_change_message.platform_block_height); // test code
         println!("self.leader_change_message.current_leader_tx_orderer_address: {:?}", self.leader_change_message.current_leader_tx_orderer_address); // test code
         println!("self.leader_change_message.next_leader_tx_orderer_address: {:?}", self.leader_change_message.next_leader_tx_orderer_address); // test code
+        */
         
         let rollup_id = self.leader_change_message.rollup_id.clone();
 
@@ -53,11 +64,15 @@ impl RpcParameter<AppState> for SyncLeaderTxOrderer {
             Error::RollupNotFound
         })?;
 
+        /*
+        // === test code start ===
         println!("= rollup initialization ="); // test code
         println!("rollup.platform: {:?}", rollup.platform); // test code
         println!("rollup.liveness_service_provider: {:?}", rollup.liveness_service_provider); // test code
         println!("rollup.cluster_id: {:?}", rollup.cluster_id); // test code
         println!("self.leader_change_message.platform_block_height: {:?}", self.leader_change_message.platform_block_height); // test code
+        // === test code end ===
+        */
 
         let cluster = Cluster::get(
             rollup.platform,
@@ -66,11 +81,15 @@ impl RpcParameter<AppState> for SyncLeaderTxOrderer {
             self.leader_change_message.platform_block_height,
         )?;
 
+        /*
+        // === test code start ===
         println!("= cluster initialization ="); // test code
         println!("cluster.tx_orderer_address: {:?}", cluster.tx_orderer_address); // test code
         println!("cluster.rollup_id_list: {:?}", cluster.rollup_id_list); // test code
         println!("cluster.tx_orderer_rpc_infos: {:?}", cluster.tx_orderer_rpc_infos); // test code
         println!("cluster.block_margin: {:?}", cluster.block_margin); // test code
+        // === test code end ===
+        */
 
         let signer = context.get_signer(rollup.platform).await.map_err(|_| {
             tracing::error!("Signer not found for platform {:?}", rollup.platform);
@@ -80,10 +99,13 @@ impl RpcParameter<AppState> for SyncLeaderTxOrderer {
         let is_leader =
             tx_orderer_address == self.leader_change_message.next_leader_tx_orderer_address;
 
+        
+        // === test code start ===
         println!("is_leader: {:?}", is_leader); // test code
         println!("signer.address() value: {:?}", signer.address()); // test code
         println!("self.leader_change_message.next_leader_tx_orderer_address: {:?}", self.leader_change_message.next_leader_tx_orderer_address); // test code
-
+        // === test code end ===
+        
         let leader_tx_orderer_rpc_info = cluster
             .get_tx_orderer_rpc_info(&self.leader_change_message.next_leader_tx_orderer_address)
             .ok_or_else(|| {
@@ -94,55 +116,138 @@ impl RpcParameter<AppState> for SyncLeaderTxOrderer {
                 Error::TxOrdererInfoNotFound
             })?;
 
+        /*
+        // === test code start ===
         println!("= leader_tx_orderer_rpc_info initialization ="); // test code
         println!("leader_tx_orderer_rpc_info.cluster_rpc_url: {:?}", leader_tx_orderer_rpc_info.cluster_rpc_url); // test code
         println!("leader_tx_orderer_rpc_info.external_rpc_url: {:?}", leader_tx_orderer_rpc_info.external_rpc_url); // test code
         println!("leader_tx_orderer_rpc_info.tx_orderer_address: {:?}", leader_tx_orderer_rpc_info.tx_orderer_address); // test code
-
+        // === test code end ===
+        */
+        
         let mut mut_cluster_metadata = ClusterMetadata::get_mut(
             rollup.platform,
             rollup.liveness_service_provider,
             &rollup.cluster_id,
         )?;
 
+        /*
+        // === test code start ===
         println!("= mut_cluster_metadata initialization ="); // test code
         println!("mut_cluster_metadata.platform_block_height: {:?}", mut_cluster_metadata.platform_block_height); // test code
         println!("mut_cluster_metadata.is_leader: {:?}", mut_cluster_metadata.is_leader); // test code
         println!("mut_cluster_metadata.leader_tx_orderer_rpc_info: {:?}", mut_cluster_metadata.leader_tx_orderer_rpc_info); // test code
+        // === test code end ===
+        */
+        
+        // 🚀🚀🚀🚀🚀 mut_cluster_metadata synchronization start(SyncLeaderTxOrderer) 🚀🚀🚀🚀🚀
+        // 📌 platform_block_height ✅
+        // 📌 is_leader ✅
+        // 📌 leader_tx_orderer_rpc_info ✅
+        // 📌 epoch ✅
+        // 📌 epoch_leader_map ✅
+        // 📌 epoch_node_bitmap -> no need to synchronize
 
         mut_cluster_metadata.platform_block_height =
-            self.leader_change_message.platform_block_height;
-        mut_cluster_metadata.is_leader = is_leader;
-        mut_cluster_metadata.leader_tx_orderer_rpc_info = Some(leader_tx_orderer_rpc_info.clone());
-        mut_cluster_metadata.epoch = Some(mut_cluster_metadata.epoch.unwrap_or(0) + 1); // new code
+            self.leader_change_message.platform_block_height; // 🚩 platform_block_height 
+        mut_cluster_metadata.is_leader = is_leader; // 🚩 is_leader 
+        mut_cluster_metadata.leader_tx_orderer_rpc_info = Some(leader_tx_orderer_rpc_info.clone()); // 🚩 leader_tx_orderer_rpc_info 
 
+        // === new code start ===
+
+        // 리더가 바뀌었을 때 SyncLeaderTxOrderer 요청을 받은 노드에서 SyncLeaderTxOrderer 요청에 담긴 new_epoch 값을 사용하여 epoch를 업데이트함(동기화)
+        mut_cluster_metadata.epoch = self.new_epoch; // new code -> 🚩 epoch
+
+        // new_epoch의 리더(next_leader) RPC URL도 epoch_leader_map에 저장 (동기화)
+        mut_cluster_metadata.epoch_leader_map.insert(self.new_epoch.unwrap(), leader_tx_orderer_rpc_info.tx_orderer_address.to_string()); // 🚩 epoch_leader_map
+
+        // === new code end ===
+        // 💫💫💫💫💫 mut_cluster_metadata synchronization end(SyncLeaderTxOrderer) 💫💫💫💫💫
+
+        // === test code start ===
         println!("= mut_cluster_metadata update ="); // test code
-        println!("mut_cluster_metadata.platform_block_height: {:?}", mut_cluster_metadata.platform_block_height); // test code
+        // println!("mut_cluster_metadata.platform_block_height: {:?}", mut_cluster_metadata.platform_block_height); // test code
         println!("mut_cluster_metadata.is_leader: {:?}", mut_cluster_metadata.is_leader); // test code
         println!("mut_cluster_metadata.leader_tx_orderer_rpc_info: {:?}", mut_cluster_metadata.leader_tx_orderer_rpc_info); // test code
+        // === test code end ===
 
         mut_cluster_metadata.update()?;
 
+        // 🔥🔥🔥🔥🔥 mut_rollup_metadata synchronization start(SyncLeaderTxOrderer) 🔥🔥🔥🔥🔥
+        // 📌 batch_number ✅
+        // 📌 transaction_order ✅
+        // 📌 provided_batch_number ✅
+        // 📌 provided_transaction_order ✅
+        // 📌 provided_epoch ✅
+        // 📌 completed_batch_number ✅
+
         let mut mut_rollup_metadata = RollupMetadata::get_mut(&rollup_id)?;
 
+        /*
+        // === test code start ===
         println!("= mut_rollup_metadata initialization ="); // test code
         println!("mut_rollup_metadata.batch_number: {:?}", mut_rollup_metadata.batch_number); // test code
         println!("mut_rollup_metadata.transaction_order: {:?}", mut_rollup_metadata.transaction_order); // test code
         println!("mut_rollup_metadata.provided_batch_number: {:?}", mut_rollup_metadata.provided_batch_number); // test code
         println!("mut_rollup_metadata.provided_transaction_order: {:?}", mut_rollup_metadata.provided_transaction_order); // test code
+        // === test code end ===
+        */
+        
+        mut_rollup_metadata.batch_number = self.batch_number; // 🚩 batch_number 
+        mut_rollup_metadata.transaction_order = self.transaction_order; // 🚩 transaction_order 
+        mut_rollup_metadata.provided_batch_number = self.provided_batch_number; // 🚩 provided_batch_number 
+        mut_rollup_metadata.provided_transaction_order = self.provided_transaction_order; // 🚩 provided_transaction_order 
 
-        mut_rollup_metadata.batch_number = self.batch_number;
-        mut_rollup_metadata.transaction_order = self.transaction_order;
-        mut_rollup_metadata.provided_batch_number = self.provided_batch_number;
-        mut_rollup_metadata.provided_transaction_order = self.provided_transaction_order;
+        mut_rollup_metadata.provided_epoch = self.provided_epoch; // new code -> 🚩 provided_epoch 
+        mut_rollup_metadata.completed_batch_number = self.completed_batch_number; // new code -> 🚩 completed_batch_number 
 
+        /*
         println!("= mut_rollup_metadata update ="); // test code
         println!("mut_rollup_metadata.batch_number: {:?}", mut_rollup_metadata.batch_number); // test code
         println!("mut_rollup_metadata.transaction_order: {:?}", mut_rollup_metadata.transaction_order); // test code
         println!("mut_rollup_metadata.provided_batch_number: {:?}", mut_rollup_metadata.provided_batch_number); // test code
         println!("mut_rollup_metadata.provided_transaction_order: {:?}", mut_rollup_metadata.provided_transaction_order); // test code
-
+        */
+        
         mut_rollup_metadata.update()?;
+
+        // 🔥🔥🔥🔥🔥 mut_rollup_metadata synchronization end(SyncLeaderTxOrderer) 🔥🔥🔥🔥🔥
+
+        // === new code start ===
+        let cluster_metadata = ClusterMetadata::get(
+            rollup.platform,
+            rollup.liveness_service_provider,
+            &rollup.cluster_id,
+        )?;
+
+        // old_epoch가 없으면 오류 출력
+        let old_epoch = self.old_epoch.ok_or_else(|| {
+            tracing::error!("old_epoch is missing in SyncLeaderTxOrderer request - rollup_id: {:?}", rollup_id);
+            Error::GeneralError("old_epoch is missing".into())
+        })?;
+
+        println!("old_epoch: {:?}", old_epoch); // test code
+
+        // epoch_leader_rpc_url이 없으면 오류 출력
+        let epoch_leader_rpc_url = cluster_metadata.epoch_leader_map.get(&old_epoch).ok_or_else(|| {
+            tracing::error!(
+                "epoch_leader_rpc_url not found for old_epoch: {:?} - rollup_id: {:?}, cluster_id: {:?}",
+                old_epoch,
+                rollup_id,
+                rollup.cluster_id
+            );
+            Error::GeneralError("epoch_leader_rpc_url not found".into())
+        })?;
+
+        println!("💡epoch_leader_rpc_url: {:?}", epoch_leader_rpc_url); // test code
+
+        send_end_signal_to_epoch_leader(
+            context.clone(),
+            rollup_id,
+            old_epoch,
+            epoch_leader_rpc_url.clone(),
+        );
+        // === new code end ===
 
         let end_sync_leader_tx_orderer_time = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -155,8 +260,64 @@ impl RpcParameter<AppState> for SyncLeaderTxOrderer {
             self
         );
 
-        println!("=== SyncLeaderTxOrderer 종료 ==="); // test code
+        println!("=== 🔄🔄🔄🔄🔄 SyncLeaderTxOrderer handler() 종료(노드 주소: {:?}) 🔄🔄🔄🔄🔄 ===", tx_orderer_address); // test code
 
         Ok(())
     }
 }
+
+// === new code start ===
+pub fn send_end_signal_to_epoch_leader(
+    context: AppState,
+    rollup_id: RollupId,
+    epoch: u64,
+    epoch_leader_rpc_url: String,
+) {
+    println!("=== 📤⚙️ send_end_signal_to_epoch_leader 시작 ⚙️📤 ==="); // test code
+
+    tokio::spawn(async move {
+        let rollup = match Rollup::get(&rollup_id) {
+            Ok(rollup) => rollup,
+            Err(e) => {
+                tracing::error!("Failed to retrieve rollup: {:?}", e);
+                return;
+            }
+        };
+
+        let signer = match context.get_signer(rollup.platform).await {
+            Ok(signer) => signer,
+            Err(e) => {
+                tracing::error!("Failed to get signer: {:?}", e);
+                return;
+            }
+        };
+
+        let sender_address = signer.address().clone();
+        let sender_address_clone = sender_address.clone();
+
+        println!("send_end_signal 요청 보내는 노드: {:?}", sender_address_clone); // test code
+        println!("epoch: {:?}", epoch); // test code
+        println!("epoch {:?}의 리더 노드 url: {:?}", epoch, epoch_leader_rpc_url); // test code
+
+        let parameter = SendEndSignal {
+            rollup_id,
+            epoch,
+            sender_address: sender_address_clone,
+        };
+
+        context
+            .rpc_client()
+            .fire_and_forget_multicast(
+                vec![epoch_leader_rpc_url],
+                SendEndSignal::method(),
+                &parameter,
+                Id::Null,
+            )
+            .await;
+
+        println!("=== 📤⚙️ send_end_signal_to_epoch_leader 종료(노드 주소: {:?}) ⚙️📤 ===", sender_address); // test code
+    });
+
+    
+}
+// === new code end ===

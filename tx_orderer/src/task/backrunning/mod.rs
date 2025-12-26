@@ -42,7 +42,7 @@ pub struct MevTargetTransaction {
 
 pub async fn run_backrunning_server(shared_channel_infos: SharedChannelInfos) {
     tokio::spawn(async move {
-        let listener = TcpListener::bind("0.0.0.0:9004").await.unwrap();
+        let listener = TcpListener::bind("0.0.0.0:9001").await.unwrap();
 
         while let Ok((tcp_stream, socket_addr)) = listener.accept().await {
             let mev_searcher_infos = MevSearcherInfos::get_or(MevSearcherInfos::default).unwrap();

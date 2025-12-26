@@ -21,6 +21,18 @@ impl Default for CanProvideEpochInfo {
         }
     }
 }
+
+impl CanProvideEpochInfo {
+    pub fn add_completed_epoch(
+        rollup_id: &RollupId,
+        epoch: u64,
+    ) -> Result<(), Error> {
+        let mut can_provide_epoch_info = Self::get_mut_or(rollup_id, Self::default)?;
+        can_provide_epoch_info.completed_epoch.insert(epoch);
+        can_provide_epoch_info.update()?;
+        Ok(())
+    }
+}
 // === new code end ===
 
 #[derive(Clone, Debug, Deserialize, Serialize, Model)]
@@ -84,7 +96,7 @@ pub struct RollupMetadata {
     pub provided_batch_number: u64,
     pub provided_transaction_order: i64,
 
-    pub completed_batch_number: u64, // new code
+    pub completed_batch_number: i64, // new code
     pub provided_epoch: u64, // new code
 }
 
@@ -100,6 +112,7 @@ impl Default for RollupMetadata {
             provided_batch_number: 0,
             provided_transaction_order: -1,
 
+            completed_batch_number: -1, // new code
             provided_epoch: 0, // new code
         }
     }

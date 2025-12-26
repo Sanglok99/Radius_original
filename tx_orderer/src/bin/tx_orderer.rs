@@ -323,6 +323,16 @@ async fn initialize_cluster_rpc_server(context: AppState) -> Result<(), Error> {
         .register_rpc_method::<cluster::SetLeaderTxOrderer>()
         .await?;
 
+    // === new code: Epoch 전파 to non-leader nodes ===
+    cluster_rpc_server
+        .register_rpc_method::<cluster::SyncEpoch>()
+        .await?;
+
+    cluster_rpc_server
+        .register_rpc_method::<cluster::SendEndSignal>()
+        .await?;
+    // === new code end ===
+
     let cluster_handle = cluster_rpc_server.init(cluster_rpc_url.clone()).await?;
 
     tracing::info!(

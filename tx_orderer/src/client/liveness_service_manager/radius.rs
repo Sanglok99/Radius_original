@@ -507,6 +507,11 @@ async fn update_or_create_rollup(
                 rollup_metadata.cluster_id = cluster_id.to_owned();
                 rollup_metadata.put(&rollup.rollup_id)?;
 
+                // === new code start ===
+                let mut can_provide_epoch = CanProvideEpochInfo::default();
+                can_provide_epoch.put(&rollup.rollup_id)?;
+                // === new code end ===
+                
                 rollup.put(&rollup.rollup_id)?;
 
                 Ok(())
