@@ -11,8 +11,8 @@ async fn main() {
     // let platform_url = "http://14.32.133.68:8545"; // old code
     let platform_url = "http://127.0.0.1:8545"; // new code
     
-    // let executor_address = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"; // old code
-    let executor_address = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"; // new code
+    let executor_address = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"; // old code
+    // let executor_address = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"; // new code
 
     //let rollup_id = "rollup_id_2"; // old code
     let rollup_id = "radius_rollup"; // new code
@@ -32,7 +32,7 @@ async fn main() {
         "http://127.0.0.1:5000",
         "http://127.0.0.1:5001",
         "http://127.0.0.1:5002",
-        "http://127.0.0.1:5003",
+        // "http://127.0.0.1:5003",
     ];
     // === new code end ===
 
@@ -51,7 +51,7 @@ async fn main() {
         "0xa0Ee7A142d267C1f36714E4a8F75612F20a79720", // 9
         "0x14dC79964da2C08b23698B3D3cc7Ca32193d9955", // 7
         "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc", // 5
-        "0x90F79bf6EB2c4f870365E785982E1f101E93b906", // 3
+        // "0x90F79bf6EB2c4f870365E785982E1f101E93b906", // 3
     ];
     // === new code end ===
 
@@ -91,6 +91,8 @@ async fn main() {
                     tx_orderer_addresses[next_leader_tx_orderer_index]
                 );
 
+                /*
+                // old code
                 let request_body = json!({
                     "jsonrpc": "2.0",
                     "method": "get_raw_transaction_list",
@@ -106,6 +108,25 @@ async fn main() {
                     },
                     "id": 1
                 });
+                */
+
+                // === new code start ===
+                let request_body = json!({
+                    "jsonrpc": "2.0",
+                    "method": "set_leader_tx_orderer",
+                    "params": {
+                        "leader_change_message": {
+                            "rollup_id": rollup_id,
+                            "executor_address": executor_address,
+                            "platform_block_height": platform_block_height - 3,
+                            "current_leader_tx_orderer_address": tx_orderer_addresses[current_leader_tx_orderer_index],
+                            "next_leader_tx_orderer_address": tx_orderer_addresses[next_leader_tx_orderer_index],
+                        },
+                        "rollup_signature": "0xc6bA578acFF1eA914A6a727b2F20776eB4ad61EE333333333333333333333333c6bA578acFF1eA914A6a727b2F20776eB4ad61EE33333333333333333333333333"
+                    },
+                    "id": 1
+                });
+                // === new code end ===
 
                 match client
                     .post(rpc_urls[current_leader_tx_orderer_index])
