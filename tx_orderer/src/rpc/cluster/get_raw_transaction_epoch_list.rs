@@ -44,7 +44,7 @@ impl RpcParameter<AppState> for GetRawTransactionEpochList {
     }
 
     async fn handler(self, context: AppState) -> Result<Self::Response, RpcError> {
-        println!("=== 🗂️ GetRawTransactionEpochList handler() 시작 🗂️ ==="); // test code
+        println!("===== 🗂️🗂️🗂️🗂️🗂️ GetRawTransactionEpochList handler() 시작 🗂️🗂️🗂️🗂️🗂️ ====="); // test code
 
         let start_get_raw_transaction_epoch_list_time = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -90,17 +90,26 @@ impl RpcParameter<AppState> for GetRawTransactionEpochList {
             });
         }
 
+        println!("💡epoch(CanProvideEpochInfo에서 받아온 값): {:?}", epoch); // test code
+
         let rollup = Rollup::get(&rollup_id)?;
+        
+        println!("last_completed_batch_number: {:?}", rollup_metadata.completed_batch_number); // test code
 
         let last_completed_batch_number = rollup_metadata.completed_batch_number; 
 
         let mut current_completed_batch_number = last_completed_batch_number; 
         let mut current_provided_batch_number = last_completed_batch_number + 1; 
 
+        println!("current_completed_batch_number(Batch 순회 전): {:?}", current_completed_batch_number); // test code
+        println!("current_provided_batch_number(Batch 순회 전): {:?}", current_provided_batch_number); // test code
+
         let mut current_provided_transaction_order = -1;
+        
+        let mut iteration_count = 0; // test code
 
         while let Ok(batch) = Batch::get(&rollup_id, current_provided_batch_number as u64) { // current_provided_batch_number is i64, but Batch::get requires u64. This variable is always a non-negative integer so this won't cause an error.
-            // println!("= {:?}th interation =", i); // test code
+            println!("= {:?}th interation =", iteration_count); // test code
 
             let mut transactions_in_batch = 0;
             raw_transaction_epoch_list.extend(my_extract_raw_transactions(
@@ -115,7 +124,12 @@ impl RpcParameter<AppState> for GetRawTransactionEpochList {
             
             current_provided_batch_number += 1;
             current_provided_transaction_order = -1;
+
+            iteration_count += 1; // test code
         }
+
+        println!("current_provided_batch_number(Batch 순회 후): {:?}", current_provided_batch_number); // test code
+        println!("current_provided_transaction_order(Batch 순회 후): {:?}", current_provided_transaction_order); // test code
 
         if let Ok(can_provide_transaction_info) = CanProvideTransactionInfo::get(&rollup_id) {
             if let Some(can_provide_transaction_orderers) = can_provide_transaction_info
@@ -135,17 +149,6 @@ impl RpcParameter<AppState> for GetRawTransactionEpochList {
                     &mut raw_transaction_epoch_list,
                     &epoch,
                 )?;
-        
-                // current_provided_transaction_order = valid_end_transaction_order;
-        
-                /*
-                if current_provided_transaction_order
-                    == rollup.max_transaction_count_per_batch as i64 - 1
-                {
-                    current_provided_batch_number += 1;
-                    current_provided_transaction_order = -1;
-                }
-                */
             }
         }
 
@@ -300,7 +303,7 @@ impl RpcParameter<AppState> for GetRawTransactionEpochList {
             }
         }
 
-        println!("=== 🗂️ GetRawTransactionEpochList handler() 종료(노드 주소: {:?}) 🗂️ ===", tx_orderer_address); // test code
+        println!("===== 🗂️🗂️🗂️🗂️🗂️ GetRawTransactionEpochList handler() 종료(노드 주소: {:?}) 🗂️🗂️🗂️🗂️🗂️ =====", tx_orderer_address); // test code
 
         Ok(GetRawTransactionEpochListResponse {
             raw_transaction_list: raw_transaction_epoch_list,

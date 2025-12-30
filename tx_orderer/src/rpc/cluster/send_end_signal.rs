@@ -17,12 +17,11 @@ impl RpcParameter<AppState> for SendEndSignal {
     }
 
     async fn handler(self, context: AppState) -> Result<Self::Response, RpcError> {
-        println!("=== 📤📤📤📤📤 SendEndSignal handler() 시작 📤📤📤📤📤 ==="); // test code
+        println!("===== 📤📤📤📤📤 SendEndSignal handler() 시작 📤📤📤📤📤 ====="); // test code
 
         println!("epoch: {:?}", self.epoch); // test code
         println!("sender_address: {:?}", self.sender_address); // test code
 
-        // Leader 노드가 end_signal을 받아서 처리
         let rollup = Rollup::get(&self.rollup_id).map_err(|e| {
             tracing::error!("Failed to retrieve rollup: {:?}", e);
             Error::RollupNotFound
@@ -89,7 +88,7 @@ impl RpcParameter<AppState> for SendEndSignal {
         println!("tx_orderer_address: {:?}", tx_orderer_address); // test code
         println!("epoch's leader: {:?}", cluster_metadata.epoch_leader_map.get(&self.epoch).unwrap_or(&"".to_string())); // test code
 
-        // 현재 노드가 epoch의 leader인지 확인 (RPC URL로 비교)
+        // 현재 노드가 epoch의 leader인지 확인(❗address❗로 비교)
         if cluster_metadata.epoch_leader_map.get(&self.epoch).unwrap_or(&"".to_string()) != &tx_orderer_address.to_string() {
             tracing::error!(
                 "Received end_signal but current node is not the epoch's leader. rollup_id: {:?}, epoch: {}, sender_address: {:?}",
@@ -162,7 +161,7 @@ impl RpcParameter<AppState> for SendEndSignal {
             e
         })?;
 
-        println!("=== 📤📤📤📤📤 SendEndSignal handler() 종료(노드 주소: {:?}) 📤📤📤📤📤 ===", tx_orderer_address); // test code
+        println!("===== 📤📤📤📤📤 SendEndSignal handler() 종료(노드 주소: {:?}) 📤📤📤📤📤 =====", tx_orderer_address); // test code
 
         Ok(())
     }

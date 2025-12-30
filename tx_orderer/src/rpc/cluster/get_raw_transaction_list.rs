@@ -658,15 +658,6 @@ pub async fn sync_leader_tx_orderer(
                     )
                     .await;
             });
-
-            /*
-            send_end_signal_to_epoch_leader(
-                context.clone(),
-                leader_change_message.rollup_id.clone(),
-                old_epoch,
-                epoch_leader_rpc_url.clone(),
-            );
-            */
             // === new code end ===
 
             /*

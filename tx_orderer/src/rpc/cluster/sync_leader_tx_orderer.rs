@@ -38,7 +38,7 @@ impl RpcParameter<AppState> for SyncLeaderTxOrderer {
 
     async fn handler(self, context: AppState) -> Result<Self::Response, RpcError> {
         
-        println!("=== 🔄🔄🔄🔄🔄 SyncLeaderTxOrderer handler() 시작 🔄🔄🔄🔄🔄 ==="); // test code
+        println!("===== 🔄🔄🔄🔄🔄 SyncLeaderTxOrderer handler() 시작 🔄🔄🔄🔄🔄 ====="); // test code
 
         /*
         println!("self.rollup_signature: {:?}", self.rollup_signature); // test code
@@ -148,6 +148,15 @@ impl RpcParameter<AppState> for SyncLeaderTxOrderer {
         // 📌 epoch_leader_map ✅
         // 📌 epoch_node_bitmap -> no need to synchronize
 
+        println!("🚀🚀🚀🚀🚀 mut_cluster_metadata before update 🚀🚀🚀🚀🚀"); // test code
+        println!("mut_cluster_metadata.platform_block_height: {:?}", mut_cluster_metadata.platform_block_height); // test code
+        println!("mut_cluster_metadata.is_leader: {:?}", mut_cluster_metadata.is_leader); // test code
+        println!("mut_cluster_metadata.leader_tx_orderer_rpc_info: {:?}", mut_cluster_metadata.leader_tx_orderer_rpc_info); // test code
+        println!("💡mut_cluster_metadata.epoch(업데이트 전): {:?}", mut_cluster_metadata.epoch); // test code
+        println!("mut_cluster_metadata.epoch_node_bitmap: {:?}", mut_cluster_metadata.epoch_node_bitmap); // test code
+        println!("mut_cluster_metadata.epoch_leader_map: {:?}", mut_cluster_metadata.epoch_leader_map); // test code
+        println!("🚀🚀🚀🚀🚀 mut_cluster_metadata before update 🚀🚀🚀🚀🚀"); // test code
+
         mut_cluster_metadata.platform_block_height =
             self.leader_change_message.platform_block_height; // 🚩 platform_block_height 
         mut_cluster_metadata.is_leader = is_leader; // 🚩 is_leader 
@@ -164,14 +173,18 @@ impl RpcParameter<AppState> for SyncLeaderTxOrderer {
         // === new code end ===
         // 💫💫💫💫💫 mut_cluster_metadata synchronization end(SyncLeaderTxOrderer) 💫💫💫💫💫
 
-        // === test code start ===
-        println!("= mut_cluster_metadata update ="); // test code
-        // println!("mut_cluster_metadata.platform_block_height: {:?}", mut_cluster_metadata.platform_block_height); // test code
+        println!("💫💫💫💫💫 mut_cluster_metadata after update 💫💫💫💫💫"); // test code
+        println!("mut_cluster_metadata.platform_block_height: {:?}", mut_cluster_metadata.platform_block_height); // test code
         println!("mut_cluster_metadata.is_leader: {:?}", mut_cluster_metadata.is_leader); // test code
         println!("mut_cluster_metadata.leader_tx_orderer_rpc_info: {:?}", mut_cluster_metadata.leader_tx_orderer_rpc_info); // test code
-        // === test code end ===
+        println!("💡mut_cluster_metadata.epoch(업데이트 후): {:?}", mut_cluster_metadata.epoch); // test code
+        println!("mut_cluster_metadata.epoch_node_bitmap: {:?}", mut_cluster_metadata.epoch_node_bitmap); // test code
+        println!("mut_cluster_metadata.epoch_leader_map: {:?}", mut_cluster_metadata.epoch_leader_map); // test code
+        println!("💫💫💫💫💫 mut_cluster_metadata after update 💫💫💫💫💫"); // test code
 
         mut_cluster_metadata.update()?;
+
+        let mut mut_rollup_metadata = RollupMetadata::get_mut(&rollup_id)?;
 
         // 🔥🔥🔥🔥🔥 mut_rollup_metadata synchronization start(SyncLeaderTxOrderer) 🔥🔥🔥🔥🔥
         // 📌 batch_number ✅
@@ -181,17 +194,16 @@ impl RpcParameter<AppState> for SyncLeaderTxOrderer {
         // 📌 provided_epoch ✅
         // 📌 completed_batch_number ✅
 
-        let mut mut_rollup_metadata = RollupMetadata::get_mut(&rollup_id)?;
-
-        /*
         // === test code start ===
-        println!("= mut_rollup_metadata initialization ="); // test code
+        println!("= 🔥🔥🔥🔥🔥 mut_rollup_metadata initialization before update 🔥🔥🔥🔥🔥 ="); // test code
         println!("mut_rollup_metadata.batch_number: {:?}", mut_rollup_metadata.batch_number); // test code
         println!("mut_rollup_metadata.transaction_order: {:?}", mut_rollup_metadata.transaction_order); // test code
         println!("mut_rollup_metadata.provided_batch_number: {:?}", mut_rollup_metadata.provided_batch_number); // test code
         println!("mut_rollup_metadata.provided_transaction_order: {:?}", mut_rollup_metadata.provided_transaction_order); // test code
-        // === test code end ===
-        */
+        println!("mut_rollup_metadata.provided_epoch: {:?}", mut_rollup_metadata.provided_epoch); // test code
+        println!("mut_rollup_metadata.completed_batch_number: {:?}", mut_rollup_metadata.completed_batch_number); // test code
+        println!("= 🔥🔥🔥🔥🔥 mut_rollup_metadata initialization after update 🔥🔥🔥🔥🔥 ="); // test code
+        // === test code end === 
         
         mut_rollup_metadata.batch_number = self.batch_number; // 🚩 batch_number 
         mut_rollup_metadata.transaction_order = self.transaction_order; // 🚩 transaction_order 
@@ -200,6 +212,17 @@ impl RpcParameter<AppState> for SyncLeaderTxOrderer {
 
         mut_rollup_metadata.provided_epoch = self.provided_epoch; // new code -> 🚩 provided_epoch 
         mut_rollup_metadata.completed_batch_number = self.completed_batch_number; // new code -> 🚩 completed_batch_number 
+
+        // === test code start ===
+        println!("= 🔥🔥🔥🔥🔥 mut_rollup_metadata initialization before update 🔥🔥🔥🔥🔥 ="); // test code
+        println!("mut_rollup_metadata.batch_number: {:?}", mut_rollup_metadata.batch_number); // test code
+        println!("mut_rollup_metadata.transaction_order: {:?}", mut_rollup_metadata.transaction_order); // test code
+        println!("mut_rollup_metadata.provided_batch_number: {:?}", mut_rollup_metadata.provided_batch_number); // test code
+        println!("mut_rollup_metadata.provided_transaction_order: {:?}", mut_rollup_metadata.provided_transaction_order); // test code
+        println!("mut_rollup_metadata.provided_epoch: {:?}", mut_rollup_metadata.provided_epoch); // test code
+        println!("mut_rollup_metadata.completed_batch_number: {:?}", mut_rollup_metadata.completed_batch_number); // test code
+        println!("= 🔥🔥🔥🔥🔥 mut_rollup_metadata initialization after update 🔥🔥🔥🔥🔥 ="); // test code
+        // === test code end === 
 
         /*
         println!("= mut_rollup_metadata update ="); // test code

@@ -94,22 +94,20 @@ impl RpcParameter<AppState> for SetLeaderTxOrderer {
         mut_cluster_metadata.leader_tx_orderer_rpc_info = Some(leader_tx_orderer_rpc_info.clone()); // 🚩 leader_tx_orderer_rpc_info 
 
         // === new code start ===
-        let old_epoch = match mut_cluster_metadata.epoch {
-            Some(epoch) => epoch,
-            None => {
-                tracing::error!("Cannot assign an old epoch — the epoch in ClusterMetadata is missing for some reason.");
-                return Ok(());
-            }
+        let old_epoch = if let Some(epoch) = mut_cluster_metadata.epoch {
+            epoch
+        } else {
+            tracing::error!("Cannot assign an old epoch — the epoch in ClusterMetadata is missing for some reason.");
+            return Ok(());
         };
 
         mut_cluster_metadata.epoch = Some(old_epoch + 1); // 🚩 epoch 
 
-        let new_epoch = match mut_cluster_metadata.epoch{
-            Some(epoch) => epoch,
-            None => {
-                tracing::error!("Cannot assign an old epoch — the epoch in ClusterMetadata is missing for some reason.");
-                return Ok(());
-            }
+        let new_epoch = if let Some(epoch) = mut_cluster_metadata.epoch {
+            epoch
+        } else {
+            tracing::error!("Cannot assign an old epoch — the epoch in ClusterMetadata is missing for some reason.");
+            return Ok(());
         };
 
         let new_leader_tx_orderer_address = mut_cluster_metadata.leader_tx_orderer_rpc_info.as_ref().unwrap().tx_orderer_address.to_string();
@@ -131,13 +129,7 @@ impl RpcParameter<AppState> for SetLeaderTxOrderer {
         let signer = context.get_signer(rollup.platform).await?;
         let current_tx_orderer_address = signer.address();
 
-        // === new code start ===
-        let epoch_leader_rpc_url = leader_tx_orderer_rpc_info
-            .cluster_rpc_url
-            .clone()
-            .unwrap_or_default();
-
-        // === new code end ===
+        let epoch_leader_rpc_url = mut_cluster_metadata.epoch_leader_map.get(&old_epoch).cloned().unwrap_or_default(); // new code
 
         sync_leader_tx_orderer(
             context.clone(),
@@ -166,6 +158,10 @@ impl RpcParameter<AppState> for SetLeaderTxOrderer {
         );
 
         mut_cluster_metadata.update()?;
+
+        // 기존 get_raw_transaction_list 요청에서 하던 mut_rollup_metadata 업데이트는 할 필요 없음
+        // provided_batch_number, provided_transaction_order, completed_batch_number 업데이트 등은 get_raw_transaction_epoch_list 요청에서 변하기에 그때 업데이트해줘야 함
+        // set_leader_tx_orderer 요청은 리더가 알고 있는 최신 mut_rollup_metadata 정보를 다른 노드들에게 전파해주는 역할만 sync_leader_tx_orderer() 함수로 수행함
 
         println!("===== ⚙️⚙️⚙️⚙️⚙️ SetLeaderTxOrderer handler() 종료(노드 주소: {:?}) ⚙️⚙️⚙️⚙️⚙️ =====", tx_orderer_address); // test code
 
