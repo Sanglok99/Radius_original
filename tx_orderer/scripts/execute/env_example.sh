@@ -5,12 +5,7 @@ PROJECT_ROOT_PATH="$( cd $SCRIPT_PATH/../.. >/dev/null 2>&1 ; pwd -P )"
 BIN_FILE_NAME="tx_orderer"
 BIN_PATH="$PROJECT_ROOT_PATH/scripts/$BIN_FILE_NAME"
 
-if [ -z "$1" ]; then
-  echo "Error: No argument supplied. Usage: $0 <data_suffix>"
-  exit 1
-fi
-
-DATA_PATH=$PROJECT_ROOT_PATH/data_$1
+DATA_PATH=$PROJECT_ROOT_PATH/data
 CONFIG_FILE_PATH=$DATA_PATH/Config.toml
 PRIVATE_KEY_PATH=$DATA_PATH/signing_key
 

@@ -91,7 +91,6 @@ async fn main() {
                     tx_orderer_addresses[next_leader_tx_orderer_index]
                 );
 
-                /*
                 // old code
                 let request_body = json!({
                     "jsonrpc": "2.0",
@@ -108,8 +107,8 @@ async fn main() {
                     },
                     "id": 1
                 });
-                */
 
+                /*
                 // === new code start ===
                 let request_body = json!({
                     "jsonrpc": "2.0",
@@ -127,6 +126,7 @@ async fn main() {
                     "id": 1
                 });
                 // === new code end ===
+                */
 
                 match client
                     .post(rpc_urls[current_leader_tx_orderer_index])

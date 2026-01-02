@@ -57,7 +57,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Prefill the connection queue with transactions.
     for _ in 0..config.total_transactions() {
         let transaction = runtime.block_on(raw_transaction(accounts.clone()));
-        // let transaction = runtime.block_on(encrypted_transaction(accounts.clone()));
         sender.blocking_send(transaction)?;
     }
 

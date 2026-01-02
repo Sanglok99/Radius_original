@@ -25,13 +25,7 @@ impl RpcParameter<AppState> for GetOrderCommitmentInfo {
     }
 
     async fn handler(self, _context: AppState) -> Result<Self::Response, RpcError> {
-        println!("=== GetOrderCommitmentInfo 시작 ==="); // test code
-
         let rollup_metadata = RollupMetadata::get(&self.rollup_id)?;
-
-        println!("rollup_metadata: {:?}", rollup_metadata); // test code
-        println!("rollup_metadata.batch_number: {:?}", rollup_metadata.batch_number); // test code
-        println!("rollup_metadata.transaction_order: {:?}", rollup_metadata.transaction_order); // test code
 
         tracing::info!(
             "Get order commitment info: rollup_id = {}, batch_number = {}, transaction_order = {}",
@@ -39,8 +33,6 @@ impl RpcParameter<AppState> for GetOrderCommitmentInfo {
             rollup_metadata.batch_number,
             rollup_metadata.transaction_order
         );
-
-        println!("=== GetOrderCommitmentInfo 종료 ==="); // test code
 
         Ok(GetOrderCommitmentInfoResponse {
             batch_number: rollup_metadata.batch_number,

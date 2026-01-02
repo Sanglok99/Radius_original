@@ -23,38 +23,13 @@ impl Transaction {
 }
 
 #[derive(Clone, Debug, Serialize)]
-// === new code start ===
-pub struct EthRawTransaction {
-    pub raw_transaction: String,
-    #[serde(default)]
-    pub epoch: Option<u64>, // None is required by the clients
-    #[serde(default)]
-    pub current_leader_tx_orderer_address: Option<String>, // None is required by the clients
-}
-// === new code end ===
+pub struct EthRawTransaction(Vec<String>);
 
-// pub struct EthRawTransaction(Vec<String>); // old code
-
-// === new code start ===
-impl EthRawTransaction {
-    pub fn new(encoded_transaction: String) -> Self {
-        Self {
-            raw_transaction: encoded_transaction,
-            epoch: None,
-            current_leader_tx_orderer_address: None,
-        }
-    }
-}
-// === new code end ===
-
-/*
-// old code
 impl EthRawTransaction {
     pub fn new(encoded_transaction: String) -> Self {
         Self(vec![encoded_transaction])
     }
 }
-*/
 
 #[derive(Clone, Debug, Serialize)]
 pub struct RawTransaction {
@@ -62,21 +37,11 @@ pub struct RawTransaction {
     raw_transaction: RawTransactionData,
 }
 
-// 제안: Postman 스키마에 맞게 data를 객체로
 #[derive(Clone, Debug, Serialize)]
 struct RawTransactionData {
     #[serde(rename = "type")]
     transaction_type: String,
-    data: EthData,
-}
-
-#[derive(Clone, Debug, Serialize)]
-struct EthData {
-    raw_transaction: String,
-    #[serde(default)]
-    epoch: Option<u64>, // None is required by the clients
-    #[serde(default)]
-    current_leader_tx_orderer_address: Option<String>, // None is required by the clients
+    data: String,
 }
 
 impl RawTransaction {
@@ -85,11 +50,7 @@ impl RawTransaction {
             rollup_id,
             raw_transaction: RawTransactionData {
                 transaction_type: "eth".to_owned(),
-                data: EthData {
-                    raw_transaction: encoded_transaction,
-                    epoch: None,
-                    current_leader_tx_orderer_address: None,
-                },
+                data: encoded_transaction,
             },
         }
     }

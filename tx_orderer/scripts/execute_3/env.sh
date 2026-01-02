@@ -1,3 +1,5 @@
+# tx_orderer/scripts/execute/env.sh
+
 #!/bin/bash
 SCRIPT_PATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 PROJECT_ROOT_PATH="$( cd $SCRIPT_PATH/../.. >/dev/null 2>&1 ; pwd -P )"
@@ -14,21 +16,20 @@ DATA_PATH=$PROJECT_ROOT_PATH/data_$1
 CONFIG_FILE_PATH=$DATA_PATH/Config.toml
 PRIVATE_KEY_PATH=$DATA_PATH/signing_key
 
+# for execute_2 only
+cp $PROJECT_ROOT_PATH/target/release/$BIN_FILE_NAME $PROJECT_ROOT_PATH/scripts/${BIN_FILE_NAME}_3 # _ 뒤에 tx_orderer 번호 붙이기
+
 # Copy the new version's binary to the scripts directory
-# if [[ -f "$PROJECT_ROOT_PATH/target/release/$BIN_FILE_NAME" ]]; then
-# cp $PROJECT_ROOT_PATH/target/release/$BIN_FILE_NAME $PROJECT_ROOT_PATH/scripts
-
-# echo "cp $PROJECT_ROOT_PATH/target/release/$BIN_FILE_NAME $PROJECT_ROOT_PATH/scripts"
-# fi
-
-# for execute_3 only
-cp $PROJECT_ROOT_PATH/target/release/$BIN_FILE_NAME $PROJECT_ROOT_PATH/scripts/${BIN_FILE_NAME}_3
+# Use a temporary name first to avoid "Text file busy" error if binary is running
+if [[ -f "$PROJECT_ROOT_PATH/target/release/$BIN_FILE_NAME" ]]; then
+  cp $PROJECT_ROOT_PATH/target/release/$BIN_FILE_NAME $PROJECT_ROOT_PATH/scripts
+fi
 
 # Check if the binary exists
 if [[ ! -f "$BIN_PATH" ]]; then
     echo "Error: TxOrderer binary not found at $BIN_PATH"
     echo "Please run this command 'cp $PROJECT_ROOT_PATH/target/release/$BIN_FILE_NAME $PROJECT_ROOT_PATH/scripts"
-    exit 1p
+    exit 1
 fi
 
 # Operating tx_orderer private key
@@ -50,4 +51,3 @@ REWARD_MANAGER_EXTERNAL_RPC_URL="http://165.194.35.15:6100" # Please change this
 
 # Builder
 # BUILDER_EXTERNAL_RPC_URL="http://127.0.0.1:7200" # Please change this builder (external) rpc url.
-
