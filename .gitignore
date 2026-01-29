@@ -1,3 +1,13 @@
 target/
-tx_orderer/**/logs/**
+tx_orderer*/**/logs/**
+tx_orderer*/data_*
 *.log
+*.tar.gz
+stompesi/tx_orderer/**/logs/**
+stompesi/tx_orderer/data_*
+
+# tx_orderer 실험 설정값 변경 무시
+tx_orderer/scripts/execute*/env.sh
+tx_orderer/scripts/rpc-call/env.sh
+
+*.swp
