@@ -55,6 +55,8 @@ impl RpcParameter<AppState> for GetRawTransactionList {
     }
 
     async fn handler(self, context: AppState) -> Result<Self::Response, RpcError> {
+        println!("===== GetRawTransactionList handler() 시작 ====="); // test code
+
         let start_get_raw_transaction_list_time = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("Time went backwards")
@@ -319,6 +321,8 @@ impl RpcParameter<AppState> for GetRawTransactionList {
                     .extend(mev_target_transaction.backrunning_transaction_list.clone());
             }
         }
+
+        println!("===== GetRawTransactionList handler() 종료(노드 주소: {:?}, raw_transaction_list 길이: {}) =====", tx_orderer_address, raw_transaction_list.len()); // test code
 
         Ok(GetRawTransactionListResponse {
             raw_transaction_list,

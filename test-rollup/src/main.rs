@@ -3,9 +3,21 @@ use std::time::Duration;
 use reqwest::Client;
 use serde_json::json;
 use tokio::time::sleep;
+use tracing::{error, info};
+
+fn init_logging() {
+    let filter = tracing_subscriber::EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"));
+    tracing_subscriber::fmt()
+        .with_env_filter(filter)
+        .with_target(true)
+        .init();
+}
 
 #[tokio::main]
 async fn main() {
+    init_logging();
+
     let client = Client::new();
 
     // let platform_url = "http://14.32.133.68:8545"; // old code
@@ -153,6 +165,8 @@ async fn main() {
                 // === new code end ===
                 */
 
+                /*
+                // old code
                 match client
                     .post(rpc_urls[current_leader_tx_orderer_index])
                     .json(&request_body)
@@ -174,6 +188,34 @@ async fn main() {
                     block_generation_count = 0;
                     platform_block_height += 1;
                 }
+                */
+
+                // === new code start ===
+                match client
+                    .post(rpc_urls[current_leader_tx_orderer_index])
+                    .json(&request_body)
+                    .send()
+                    .await
+                {
+                    Ok(response) => {
+                        let response = response.json::<serde_json::Value>().await.unwrap();
+
+                        let tx_list_len = response["result"]["raw_transaction_list"]
+                            .as_array()
+                            .map(|arr| arr.len())
+                            .unwrap_or(0);
+                        info!("raw_transaction_list 길이: {}", tx_list_len);
+
+                        if let Ok(pretty) = serde_json::to_string_pretty(&response) {
+                            info!("Response\n{}", pretty);
+                        } else {
+                            info!(?response, "Response");
+                        }
+                        rollup_block_height += 1;
+                    }
+                    Err(e) => error!(%e, "Request failed"),
+                }
+                // === new code end ===
 
                 block_generation_count += 1;
                 sleep(Duration::from_secs(block_generation_interval)).await;
