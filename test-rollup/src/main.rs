@@ -97,6 +97,7 @@ async fn main() {
 
     let mut rollup_block_height = 1;
     let mut block_generation_count = 0;
+    let mut cumulative_tx_count: usize = 0;
 
     let get_platform_block_height = json!({
         "jsonrpc":"2.0",
@@ -204,7 +205,11 @@ async fn main() {
                             .as_array()
                             .map(|arr| arr.len())
                             .unwrap_or(0);
-                        info!("raw_transaction_list 길이: {}", tx_list_len);
+                        cumulative_tx_count += tx_list_len;
+                        info!(
+                            "raw_transaction_list 길이: {}, 누적 합: {}",
+                            tx_list_len, cumulative_tx_count
+                        );
 
                         if let Ok(pretty) = serde_json::to_string_pretty(&response) {
                             info!("Response\n{}", pretty);
@@ -216,6 +221,13 @@ async fn main() {
                     Err(e) => error!(%e, "Request failed"),
                 }
                 // === new code end ===
+
+                if block_generation_count
+                    == l1_block_generation_interval / block_generation_interval
+                {
+                    block_generation_count = 0;
+                    platform_block_height += 1;
+                }
 
                 block_generation_count += 1;
                 sleep(Duration::from_secs(block_generation_interval)).await;
