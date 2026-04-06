@@ -55,8 +55,6 @@ impl RpcParameter<AppState> for GetRawTransactionList {
     }
 
     async fn handler(self, context: AppState) -> Result<Self::Response, RpcError> {
-        println!("===== GetRawTransactionList handler() 시작 ====="); // test code
-
         let start_get_raw_transaction_list_time = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("Time went backwards")
@@ -200,14 +198,15 @@ impl RpcParameter<AppState> for GetRawTransactionList {
                     .await
                 {
                     Ok(response) => {
+                        /*
+                        tracing::info!(
+                            "Get order commitment info - current leader external rpc response: {:?}",
+                            response
+                        );
+                        */
 
-                      tracing::info!(
-                          "Get order commitment info - current leader external rpc response: {:?}",
-                          response
-                      );
-
-                      mut_rollup_metadata.batch_number = response.batch_number;
-                      mut_rollup_metadata.transaction_order = response.transaction_order;
+                        mut_rollup_metadata.batch_number = response.batch_number;
+                        mut_rollup_metadata.transaction_order = response.transaction_order;
                     }
                     Err(error) => {
                         tracing::error!(
@@ -259,10 +258,12 @@ impl RpcParameter<AppState> for GetRawTransactionList {
             .expect("Time went backwards")
             .as_nanos();
 
+        /*
         tracing::info!(
             "get_raw_transaction_list - total take time: {:?}",
             end_get_raw_transaction_list_time - start_get_raw_transaction_list_time
         );
+        */
 
         let shared_channel_infos = context.shared_channel_infos();
         let mev_searcher_infos = MevSearcherInfos::get_or(MevSearcherInfos::default).unwrap();
@@ -321,8 +322,6 @@ impl RpcParameter<AppState> for GetRawTransactionList {
                     .extend(mev_target_transaction.backrunning_transaction_list.clone());
             }
         }
-
-        println!("===== GetRawTransactionList handler() 종료(노드 주소: {:?}, raw_transaction_list 길이: {}) =====", tx_orderer_address, raw_transaction_list.len()); // test code
 
         Ok(GetRawTransactionListResponse {
             raw_transaction_list,
