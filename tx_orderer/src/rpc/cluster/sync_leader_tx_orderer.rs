@@ -92,11 +92,13 @@ impl RpcParameter<AppState> for SyncLeaderTxOrderer {
             .expect("Time went backwards")
             .as_nanos();
 
+        /*
         tracing::info!(
             "sync_leader_tx_orderer - total take time: {:?} / self: {:?}",
             end_sync_leader_tx_orderer_time - start_sync_leader_tx_orderer_time,
             self
         );
+        */
 
         Ok(())
     }

@@ -301,7 +301,7 @@ impl RpcParameter<AppState> for GetRawTransactionList {
                         guard.recv().await
                     } => {
                         if let Some(mev_target_transaction) = maybe_mev_target_transaction {
-                            tracing::info!("Received mev target transaction: {:?}", mev_target_transaction);
+                            // tracing::info!("Received mev target transaction: {:?}", mev_target_transaction);
                             collected_clone.lock().await.push(mev_target_transaction);
                         }
                     }
@@ -393,6 +393,7 @@ pub async fn sync_leader_tx_orderer(
                 .expect("Time went backwards")
                 .as_nanos();
 
+            /*
             tracing::info!(
                 "SyncLeaderTxOrderer - start: {:?} / end: {:?} / gap: {:?} / next_leader_tx_orderer_cluster_rpc_url: {:?}, parameter: {:?}",
                 start_sync_leader_tx_order_time,
@@ -401,7 +402,8 @@ pub async fn sync_leader_tx_orderer(
                 next_leader_tx_orderer_cluster_rpc_url,
                 parameter
             );
-
+            */
+            
             // Fire and forget to the rest of the cluster nodes asynchronously
             let urls = other_cluster_rpc_url_list.clone();
             tokio::spawn(async move {
