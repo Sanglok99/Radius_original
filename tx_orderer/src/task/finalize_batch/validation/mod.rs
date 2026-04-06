@@ -95,7 +95,7 @@ pub async fn submit_batch_commitment(
                         break;
                     }
                     Err(error) => {
-                        tracing::warn!("{:?}", error);
+                        // tracing::warn!("{:?}", error);
                         sleep(Duration::from_secs(2)).await;
                     }
                 }
