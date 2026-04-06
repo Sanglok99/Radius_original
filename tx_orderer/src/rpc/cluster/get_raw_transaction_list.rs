@@ -315,7 +315,7 @@ impl RpcParameter<AppState> for GetRawTransactionList {
 
         {
             let result = collected_mev_target_transaction.lock().await;
-            tracing::info!("Collected mev target transactions: {:?}", *result);
+            // tracing::info!("Collected mev target transactions: {:?}", *result);
 
             for mev_target_transaction in result.iter() {
                 raw_transaction_list
@@ -403,7 +403,7 @@ pub async fn sync_leader_tx_orderer(
                 parameter
             );
             */
-            
+
             // Fire and forget to the rest of the cluster nodes asynchronously
             let urls = other_cluster_rpc_url_list.clone();
             tokio::spawn(async move {
