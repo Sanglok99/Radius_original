@@ -243,11 +243,13 @@ pub fn sync_batch_creation(
     batch_creator_signature: Signature,
 ) {
     tokio::spawn(async move {
+        /*
         tracing::info!(
             "Sync batch creation - rollup_id: {:?} / batch_number: {:?}",
             rollup_id,
             batch_number
         );
+        */
 
         let other_cluster_rpc_url_list = cluster.get_other_cluster_rpc_url_list();
         if other_cluster_rpc_url_list.is_empty() {
