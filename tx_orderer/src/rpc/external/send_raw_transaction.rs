@@ -1,3 +1,8 @@
+use std::sync::atomic::AtomicU64;
+use std::time::{SystemTime, UNIX_EPOCH};
+
+use radius_sdk::signature::Address;
+
 use crate::{
     rpc::{
         cluster::{BatchCreationMessage, SyncBatchCreation, SyncRawTransaction},
@@ -8,6 +13,28 @@ use crate::{
     types::*,
 };
 
+/// Wall times for a single `send_raw_transaction` handler on one node; **milliseconds** since Unix epoch.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct SendRawTransactionHandlerTimings {
+    pub start_ms: u128,
+    pub end_ms: u128,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct SendRawTransactionResponse {
+    pub order_commitment: OrderCommitment,
+    pub handler_timings: SendRawTransactionHandlerTimings,
+    /// Present when a non-leader node forwarded: `handler_timings` is this hop, this holds the leader's timings.
+    pub leader_handler_timings: Option<SendRawTransactionHandlerTimings>,
+}
+
+fn now_epoch_ms() -> u128 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("Time went backwards")
+        .as_millis()
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SendRawTransaction {
     pub rollup_id: RollupId,
@@ -15,13 +42,15 @@ pub struct SendRawTransaction {
 }
 
 impl RpcParameter<AppState> for SendRawTransaction {
-    type Response = OrderCommitment;
+    type Response = SendRawTransactionResponse;
 
     fn method() -> &'static str {
         "send_raw_transaction"
     }
 
     async fn handler(self, context: AppState) -> Result<Self::Response, RpcError> {
+        let handler_start_ms = now_epoch_ms();
+
         let rollup = Rollup::get(&self.rollup_id)?;
 
         let mut mut_rollup_metadata = RollupMetadata::get_mut(&self.rollup_id)?;
@@ -147,14 +176,25 @@ impl RpcParameter<AppState> for SendRawTransaction {
                 }
             }
 
-            match rollup.order_commitment_type {
-                OrderCommitmentType::TransactionHash => Ok(OrderCommitment::Single(
+            let handler_end_ms = now_epoch_ms();
+
+            let order_commitment = match rollup.order_commitment_type {
+                OrderCommitmentType::TransactionHash => OrderCommitment::Single(
                     SingleOrderCommitment::TransactionHash(TransactionHashOrderCommitment::new(
                         transaction_hash.as_string(),
                     )),
-                )),
-                OrderCommitmentType::Sign => Ok(order_commitment),
-            }
+                ),
+                OrderCommitmentType::Sign => order_commitment,
+            };
+
+            Ok(SendRawTransactionResponse {
+                order_commitment,
+                handler_timings: SendRawTransactionHandlerTimings {
+                    start_ms: handler_start_ms,
+                    end_ms: handler_end_ms,
+                },
+                leader_handler_timings: None,
+            })
         } else {
             drop(mut_rollup_metadata);
 
@@ -167,7 +207,7 @@ impl RpcParameter<AppState> for SendRawTransaction {
 
                     match context
                         .rpc_client()
-                        .request(
+                        .request::<&SendRawTransaction, SendRawTransactionResponse>(
                             leader_external_rpc_url,
                             SendRawTransaction::method(),
                             &self,
@@ -175,7 +215,18 @@ impl RpcParameter<AppState> for SendRawTransaction {
                         )
                         .await
                     {
-                        Ok(response) => Ok(response),
+                        Ok(response) => {
+                            let handler_end_ms = now_epoch_ms();
+                            let leader_handler_timings = response.handler_timings;
+                            Ok(SendRawTransactionResponse {
+                                order_commitment: response.order_commitment,
+                                handler_timings: SendRawTransactionHandlerTimings {
+                                    start_ms: handler_start_ms,
+                                    end_ms: handler_end_ms,
+                                },
+                                leader_handler_timings: Some(leader_handler_timings),
+                            })
+                        }
                         Err(error) => {
                             tracing::error!(
                                 "Send raw transaction - leader external rpc error: {:?}",
