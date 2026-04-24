@@ -49,11 +49,11 @@ impl RpcParameter<AppState> for SendRawTransaction {
     }
 
     async fn handler(self, context: AppState) -> Result<Self::Response, RpcError> {
-        let handler_start_ms = now_epoch_ms();
-
         let rollup = Rollup::get(&self.rollup_id)?;
 
+        let handler_start_ms = now_epoch_ms();
         let mut mut_rollup_metadata = RollupMetadata::get_mut(&self.rollup_id)?;
+        let handler_end_ms = now_epoch_ms();
 
         let cluster_metadata = ClusterMetadata::get(
             rollup.platform,
@@ -176,8 +176,6 @@ impl RpcParameter<AppState> for SendRawTransaction {
                 }
             }
 
-            let handler_end_ms = now_epoch_ms();
-
             let order_commitment = match rollup.order_commitment_type {
                 OrderCommitmentType::TransactionHash => OrderCommitment::Single(
                     SingleOrderCommitment::TransactionHash(TransactionHashOrderCommitment::new(
@@ -216,7 +214,6 @@ impl RpcParameter<AppState> for SendRawTransaction {
                         .await
                     {
                         Ok(response) => {
-                            let handler_end_ms = now_epoch_ms();
                             let leader_handler_timings = response.handler_timings;
                             Ok(SendRawTransactionResponse {
                                 order_commitment: response.order_commitment,
