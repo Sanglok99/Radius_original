@@ -14,31 +14,31 @@ use crate::{
 };
 
 /// Wall times for a single `send_raw_transaction` handler on one node; **milliseconds** since Unix epoch.
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SendRawTransactionHandlerTimings {
     pub start_ms: u128,
     pub end_ms: u128,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SendRawTransactionRollupMetadataTimings {
     pub start_ms: u128,
     pub end_ms: u128,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SendRawTransactionRollupMetadataGetMutTimings {
     pub start_ms: u128,
     pub end_ms: u128,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SendRawTransactionAfterRollupMetadataUpdateTimings {
     pub start_ms: u128,
     pub end_ms: u128,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SendRawTransactionRedirectToLeaderTimings {
     pub start_ms: u128,
     pub end_ms: u128,
