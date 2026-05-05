@@ -20,12 +20,38 @@ pub struct SendRawTransactionHandlerTimings {
     pub end_ms: u128,
 }
 
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct SendRawTransactionRollupMetadataTimings {
+    pub start_ms: u128,
+    pub end_ms: u128,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct SendRawTransactionRollupMetadataGetMutTimings {
+    pub start_ms: u128,
+    pub end_ms: u128,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct SendRawTransactionAfterRollupMetadataUpdateTimings {
+    pub start_ms: u128,
+    pub end_ms: u128,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct SendRawTransactionRedirectToLeaderTimings {
+    pub start_ms: u128,
+    pub end_ms: u128,
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SendRawTransactionResponse {
     pub order_commitment: OrderCommitment,
     pub handler_timings: SendRawTransactionHandlerTimings,
-    /// Present when a non-leader node forwarded: `handler_timings` is this hop, this holds the leader's timings.
-    pub leader_handler_timings: Option<SendRawTransactionHandlerTimings>,
+    pub rollup_metadata_timings: SendRawTransactionRollupMetadataTimings,
+    pub rollup_metadata_get_mut_timings: SendRawTransactionRollupMetadataGetMutTimings,
+    pub after_rollup_metadata_update_timings: Option<SendRawTransactionAfterRollupMetadataUpdateTimings>,
+    pub redirect_to_leader_timings: Option<SendRawTransactionRedirectToLeaderTimings>,
 }
 
 fn now_epoch_ms() -> u128 {
@@ -51,9 +77,15 @@ impl RpcParameter<AppState> for SendRawTransaction {
     async fn handler(self, context: AppState) -> Result<Self::Response, RpcError> {
         let rollup = Rollup::get(&self.rollup_id)?;
 
-        let handler_start_ms = now_epoch_ms();
+        let handler_start_ms = now_epoch_ms(); // test code
+
+        let rollup_metadata_start_ms = now_epoch_ms(); // test code
+
         let mut mut_rollup_metadata = RollupMetadata::get_mut(&self.rollup_id)?;
-        let handler_end_ms = now_epoch_ms();
+        
+        let rollup_metadata_end_ms = now_epoch_ms(); // test code
+
+        let rollup_metadata_get_mut_start_ms = now_epoch_ms(); // test code
 
         let cluster_metadata = ClusterMetadata::get(
             rollup.platform,
@@ -110,6 +142,10 @@ impl RpcParameter<AppState> for SendRawTransaction {
             let is_updated = mut_rollup_metadata.check_and_update_batch_info();
 
             mut_rollup_metadata.update()?;
+
+            let rollup_metadata_get_mut_end_ms = now_epoch_ms(); // test code
+
+            let after_rollup_metadata_update_start_ms = now_epoch_ms(); // test code
 
             if is_updated {
                 context
@@ -185,16 +221,36 @@ impl RpcParameter<AppState> for SendRawTransaction {
                 OrderCommitmentType::Sign => order_commitment,
             };
 
+            let after_rollup_metadata_update_end_ms = now_epoch_ms(); // test code
+
+            let handler_end_ms = now_epoch_ms(); // test code
+
             Ok(SendRawTransactionResponse {
                 order_commitment,
                 handler_timings: SendRawTransactionHandlerTimings {
                     start_ms: handler_start_ms,
                     end_ms: handler_end_ms,
                 },
-                leader_handler_timings: None,
+                rollup_metadata_timings: SendRawTransactionRollupMetadataTimings {
+                    start_ms: rollup_metadata_start_ms,
+                    end_ms: rollup_metadata_end_ms,
+                },
+                rollup_metadata_get_mut_timings: SendRawTransactionRollupMetadataGetMutTimings {
+                    start_ms: rollup_metadata_get_mut_start_ms,
+                    end_ms: rollup_metadata_get_mut_end_ms,
+                },
+                after_rollup_metadata_update_timings: Some(SendRawTransactionAfterRollupMetadataUpdateTimings {
+                    start_ms: after_rollup_metadata_update_start_ms,
+                    end_ms: after_rollup_metadata_update_end_ms,
+                }),
+                redirect_to_leader_timings: None,
             })
         } else {
             drop(mut_rollup_metadata);
+
+            let rollup_metadata_get_mut_end_ms = now_epoch_ms(); // test code
+
+            let redirect_to_leader_start_ms = now_epoch_ms(); // test code
 
             match cluster_metadata.leader_tx_orderer_rpc_info {
                 Some(leader_tx_orderer_rpc_info) => {
@@ -214,14 +270,29 @@ impl RpcParameter<AppState> for SendRawTransaction {
                         .await
                     {
                         Ok(response) => {
-                            let leader_handler_timings = response.handler_timings;
+                            let redirect_to_leader_end_ms = now_epoch_ms(); // test code
+
+                            let handler_end_ms = now_epoch_ms(); // test code
+
                             Ok(SendRawTransactionResponse {
                                 order_commitment: response.order_commitment,
                                 handler_timings: SendRawTransactionHandlerTimings {
                                     start_ms: handler_start_ms,
                                     end_ms: handler_end_ms,
                                 },
-                                leader_handler_timings: Some(leader_handler_timings),
+                                rollup_metadata_timings: SendRawTransactionRollupMetadataTimings {
+                                    start_ms: rollup_metadata_start_ms,
+                                    end_ms: rollup_metadata_end_ms,
+                                },
+                                rollup_metadata_get_mut_timings: SendRawTransactionRollupMetadataGetMutTimings {
+                                    start_ms: rollup_metadata_get_mut_start_ms,
+                                    end_ms: rollup_metadata_get_mut_end_ms,
+                                },
+                                after_rollup_metadata_update_timings: None,
+                                redirect_to_leader_timings: Some(SendRawTransactionRedirectToLeaderTimings {
+                                    start_ms: redirect_to_leader_start_ms,
+                                    end_ms: redirect_to_leader_end_ms,
+                                }),
                             })
                         }
                         Err(error) => {
