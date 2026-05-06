@@ -52,6 +52,9 @@ pub struct SendRawTransactionResponse {
     pub rollup_metadata_get_mut_timings: SendRawTransactionRollupMetadataGetMutTimings,
     pub after_rollup_metadata_update_timings: Option<SendRawTransactionAfterRollupMetadataUpdateTimings>,
     pub redirect_to_leader_timings: Option<SendRawTransactionRedirectToLeaderTimings>,
+    pub leader_rollup_metadata_timings: Option<SendRawTransactionRollupMetadataTimings>,
+    pub leader_rollup_metadata_get_mut_timings: Option<SendRawTransactionRollupMetadataGetMutTimings>,
+    pub leader_after_rollup_metadata_update_timings: Option<SendRawTransactionAfterRollupMetadataUpdateTimings>,
 }
 
 fn now_epoch_ms() -> u128 {
@@ -244,6 +247,9 @@ impl RpcParameter<AppState> for SendRawTransaction {
                     end_ms: after_rollup_metadata_update_end_ms,
                 }),
                 redirect_to_leader_timings: None,
+                leader_rollup_metadata_timings: None,
+                leader_rollup_metadata_get_mut_timings: None,
+                leader_after_rollup_metadata_update_timings: None,
             })
         } else {
             drop(mut_rollup_metadata);
@@ -272,6 +278,10 @@ impl RpcParameter<AppState> for SendRawTransaction {
                         Ok(response) => {
                             let redirect_to_leader_end_ms = now_epoch_ms(); // test code
 
+                            let leader_rollup_metadata_timings = response.rollup_metadata_timings;
+                            let leader_rollup_metadata_get_mut_timings = response.rollup_metadata_get_mut_timings;
+                            let leader_after_rollup_metadata_update_timings = response.after_rollup_metadata_update_timings;
+
                             let handler_end_ms = now_epoch_ms(); // test code
 
                             Ok(SendRawTransactionResponse {
@@ -293,6 +303,9 @@ impl RpcParameter<AppState> for SendRawTransaction {
                                     start_ms: redirect_to_leader_start_ms,
                                     end_ms: redirect_to_leader_end_ms,
                                 }),
+                                leader_rollup_metadata_timings: Some(leader_rollup_metadata_timings),
+                                leader_rollup_metadata_get_mut_timings: Some(leader_rollup_metadata_get_mut_timings),
+                                leader_after_rollup_metadata_update_timings: leader_after_rollup_metadata_update_timings,
                             })
                         }
                         Err(error) => {
