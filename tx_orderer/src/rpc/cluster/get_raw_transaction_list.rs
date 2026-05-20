@@ -369,9 +369,13 @@ pub async fn sync_leader_tx_orderer(
             provided_transaction_order,
         };
 
-        if next_leader_tx_orderer_rpc_info.tx_orderer_address != leader_change_message.current_leader_tx_orderer_address { // new code
-        //if next_leader_tx_orderer_rpc_info.tx_orderer_address != current_tx_orderer_address { // old code
-            // Directly request the next leader tx_orderer to sync
+        if next_leader_tx_orderer_rpc_info.tx_orderer_address
+            != leader_change_message.current_leader_tx_orderer_address
+        {
+            // new code
+            //if next_leader_tx_orderer_rpc_info.tx_orderer_address !=
+            // current_tx_orderer_address { // old code Directly request the
+            // next leader tx_orderer to sync
             let start_sync_leader_tx_order_time = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .expect("Time went backwards")

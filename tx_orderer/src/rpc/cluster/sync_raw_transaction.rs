@@ -126,7 +126,7 @@ impl RpcParameter<AppState> for SyncRawTransaction {
             end_sync_raw_transaction_time - start_sync_raw_transaction_time
         );
         */
-        
+
         Ok(())
     }
 }

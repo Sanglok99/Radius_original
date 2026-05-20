@@ -3,9 +3,8 @@ use std::collections::{BTreeSet, HashMap};
 use radius_sdk::kvstore::Model;
 use serde::{Deserialize, Serialize};
 
-use crate::{error::Error, types::ClusterId};
-
 use super::RollupId;
+use crate::{error::Error, types::ClusterId};
 
 #[derive(Clone, Debug, Deserialize, Serialize, Model)]
 #[kvstore(key(rollup_id: &RollupId))]

@@ -234,7 +234,7 @@ pub async fn create_batch_task(
                     raw_transactions.len()
                 );
                 */
-                
+
                 let batch = Batch::new(
                     batch_number,
                     encrypted_transactions,
@@ -417,6 +417,6 @@ pub async fn get_raw_transaction_info_list(
         raw_transaction_info_list.len()
     );
     */
-    
+
     Ok(raw_transaction_info_list)
 }

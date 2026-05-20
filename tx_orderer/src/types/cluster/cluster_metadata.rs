@@ -1,12 +1,11 @@
 use radius_sdk::kvstore::Model;
 use serde::{Deserialize, Serialize};
 
+use super::ClusterId;
 use crate::{
     client::seeder::TxOrdererRpcInfo,
     types::{LivenessServiceProvider, Platform},
 };
-
-use super::ClusterId;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, Model)]
 #[kvstore(key(platform: Platform, liveness_service_provider: LivenessServiceProvider, cluster_id: &str))]
